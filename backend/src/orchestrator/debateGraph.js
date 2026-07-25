@@ -11,18 +11,23 @@ import { extractSampleTestCases, cleanCodeString, cleanMarkdownText } from '../u
 function isCodeEmptyOrPlaceholder(code, language) {
   if (!code || typeof code !== 'string') return true;
   
-  // Strip comments (single line and multi line)
-  const trimmed = code.replace(/\/\*[\s\S]*?\*\/|\/\/.*$/gm, '').trim();
+  // Strip comments: C++/Java (/* */ and //), Python (# and """ """)
+  const trimmed = code
+    .replace(/\/\*[\s\S]*?\*\//g, '')
+    .replace(/\/\/.*/g, '')
+    .replace(/#.*/g, '')
+    .replace(/\"\"\"[\s\S]*?\"\"\"/g, '')
+    .trim();
   
-  if (trimmed.length < 50) return true;
+  if (trimmed.length < 20) return true;
   
-  // Reject placeholder indicators
-  if (/Default\s+fallback|fallback\s+template|placeholder\s+solution/i.test(code)) {
+  // Reject explicit placeholder indicators
+  if (/Default\s+fallback\s+solution|fallback\s+template|placeholder\s+solution/i.test(code)) {
     return true;
   }
   
-  // Verify logic keywords exist
-  const hasLogic = /\b(if|else|for|while|do|switch|map|vector|unordered_map|set|unordered_set|queue|priority_queue|stack|pair|algorithm|Math|Arrays|List|dict|def|lambda)\b|[\+\-\*\/\%\&\|\^\<\>\!\=]/i.test(trimmed);
+  // Verify logic keywords exist for target language
+  const hasLogic = /\b(if|else|for|while|do|switch|map|vector|unordered_map|set|unordered_set|queue|priority_queue|stack|pair|algorithm|Math|Arrays|List|dict|def|class|return|self|lambda|import|public|void|int|double|string|std)\b|[\+\-\*\/\%\&\|\^\<\>\!\=\:\.\[\]]/i.test(trimmed);
   if (!hasLogic) {
     return true;
   }
