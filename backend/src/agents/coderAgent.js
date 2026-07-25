@@ -45,16 +45,22 @@ Write the complete optimal solution strictly in ${langUpper} (e.g. C++, Python, 
 
 Guidelines:
 1. Write code strictly in ${langUpper}.
-2. MANDATORY TEMPLATE ENFORCEMENT: You MUST dynamically preserve the EXACT function name, return type, parameter types, and parameter names provided in the starter template under '=== EXPORTED STARTER TEMPLATES ===' for ${langUpper}.
-- If language is Python: You MUST wrap your solution strictly inside 'class Solution:' (e.g. def methodName(self, ...):). Include typing imports (from typing import List, Dict, Optional).
-- If language is Java: You MUST wrap your solution strictly inside 'class Solution' (e.g. public ReturnType methodName(...)). Include java.util.* imports.
-- If language is C++: You MUST wrap your solution strictly inside 'class Solution { public: ... };'.
-NEVER invent custom function names, change return types, or alter parameter types under any circumstances.
-3. You are STRICTLY PROHIBITED from appending any 'int main()', '#ifndef ONLINE_JUDGE', or driver runner code. The output MUST end cleanly after the class Solution block.
-4. Ensure the time complexity is optimal for large input constraints.
-5. Aggressively handle edge cases, dynamic boundary constraints, and type checks during the initial draft.
-6. LeetCode Sample Test Context: Use extracted sample examples and constraints to guide your solution's correctness.
-7. DO NOT RE-DEFINE PRE-COMPILED LEETCODE STRUCTS: When generating solutions for Linked List (ListNode) or Tree (TreeNode) problems, DO NOT write or output struct ListNode or struct TreeNode definitions in the final code block. Assume ListNode and TreeNode are already available globally.
+2. MANDATORY LEETCODE FUNCTION SIGNATURE EXTRACTION:
+   - Carefully extract or deduce the EXACT method name, return type, and parameter types expected by LeetCode for the target problem.
+   - For Tree problems: Use exact node pointers/classes (e.g. C++: 'bool isSameTree(TreeNode* p, TreeNode* q)' or 'TreeNode* invertTree(TreeNode* root)').
+   - For Linked List problems: Use exact node pointers/classes (e.g. C++: 'ListNode* reverseList(ListNode* head)').
+   - For Array / String / Matrix problems: Use exact container signatures (e.g. C++: 'vector<int>& nums', 'string s', 'vector<vector<int>>& matrix').
+   - Do NOT invent arbitrary parameter names or generic signatures like 'vector<int>& nums' for Tree, Graph, Linked List, or non-array questions under any circumstances! Preserve the starter template under '=== EXPORTED STARTER TEMPLATES ===' line-for-line.
+
+3. DATA STRUCTURE & CLASS WRAPPING DEFINITIONS:
+   - For C++: Wrap solution inside 'class Solution { public: ... };'. Include necessary helper struct definitions (e.g. 'struct TreeNode', 'struct ListNode') if required for standalone compilation in the sandbox.
+   - For Python: Wrap solution strictly inside 'class Solution:' (e.g. 'def isSameTree(self, p: Optional[TreeNode], q: Optional[TreeNode]) -> bool:'). Include typing imports ('from typing import List, Dict, Optional').
+   - For Java: Wrap solution strictly inside 'class Solution' (e.g. 'public boolean isSameTree(TreeNode p, TreeNode q)'). Include 'import java.util.*;'.
+
+4. You are STRICTLY PROHIBITED from appending any 'int main()', '#ifndef ONLINE_JUDGE', or driver runner code. The output MUST end cleanly after the class Solution block.
+5. Ensure the time complexity is optimal for large input constraints.
+6. Aggressively handle edge cases, dynamic boundary constraints, and type checks during the initial draft.
+7. LeetCode Sample Test Context: Use extracted sample examples and constraints to guide your solution's correctness.
 8. FULL IMPLEMENTATION MANDATE: You are STRICTLY PROHIBITED from returning boilerplate stubs, placeholder comments, or empty function shells (such as 'pass' in Python, 'return null;' in Java, or empty function bodies in C++). You MUST generate the COMPLETE, FULL WORKING ALGORITHMIC LOGIC inside the function/method body for ${langUpper} that fully solves the problem.
   `.trim();
 
