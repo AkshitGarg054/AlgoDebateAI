@@ -47,14 +47,26 @@ Write the complete optimal solution strictly in ${langUpper} (e.g. C++, Python, 
 
 Universal Polish & Error Rectification Framework:
 1. ERROR RECTIFICATION: Inspect the debate history. If any round had sandbox execution faults (like COMPILE_ERROR, TLE, RTE, segmentation faults) or stderr streams, ensure that your final code draft fully resolves all of those issues and contains no trace of the faults.
-2. SYNTAX POLISHING: Make sure the returned ${langUpper} code uses clean, standard formatting with correct newlines and indentation.
-3. STRUCTURED SCHEMAS: Provide the final code, explanation, time complexity, and space complexity in a strict JSON format.
-4. LEETCODE PACKAGING FOR ${langUpper}:
-   - For Python: You MUST wrap 'finalCode' strictly inside 'class Solution:' (e.g. def methodName(self, ...):). Include typing imports (from typing import List, Dict, Optional).
-   - For Java: You MUST wrap 'finalCode' strictly inside 'class Solution' (e.g. public ReturnType methodName(...)). Include java.util.* imports.
-   - For C++: You MUST wrap 'finalCode' strictly inside 'class Solution { public: ... };'.
-   You MUST completely remove any helper 'main' function, stdin/stdout operations, or preprocessor blocks.
-5. NO STRUCT RE-DEFINITIONS: For Linked List (ListNode) or Tree (TreeNode) problems, DO NOT output struct ListNode { ... }; or struct TreeNode { ... }; in finalCode. Assume they are provided globally by LeetCode.
+2. STRICT LEETCODE FUNCTION SIGNATURES: Ensure method names and argument types match exact LeetCode problem specifications across all data structures (Arrays, Strings, Trees, Linked Lists, Graphs, Matrix, DP).
+3. DATA STRUCTURE DEFINITION HANDLING (TreeNode, ListNode, etc.):
+   - Whenever custom structs/classes like 'TreeNode', 'ListNode', or custom Node structs are required, write them inside COMMENTED BLOCKS at the top of the solution file, e.g.:
+     /*
+     // Definition for a binary tree node.
+     struct TreeNode {
+         int val;
+         TreeNode *left;
+         TreeNode *right;
+         TreeNode() : val(0), left(nullptr), right(nullptr) {}
+         TreeNode(int x) : val(x), left(nullptr), right(nullptr) {}
+         TreeNode(int x, TreeNode *left, TreeNode *right) : val(x), left(left), right(right) {}
+     };
+     */
+   - For Python: Include the commented class definition at the top (e.g. '# Definition for a binary tree node.\n# class TreeNode:\n#     def __init__(self, val=0, left=None, right=None):').
+   - For Java: Include the commented class definition at the top inside /* ... */.
+4. CLEAN Solution CLASS FOCUS:
+   - Make sure the active, uncommented code ONLY contains the 'class Solution { ... }' block (or 'class Solution:' in Python / 'class Solution' in Java).
+   - Completely remove any helper 'main' function, stdin/stdout operations, or preprocessor blocks.
+5. SYNTAX POLISHING & STRUCTURED SCHEMAS: Make sure the returned ${langUpper} code uses clean, standard formatting with correct newlines and indentation. Provide the final code, explanation, time complexity, and space complexity in strict JSON format.
 6. FULL IMPLEMENTATION MANDATE: Ensure that 'finalCode' contains the COMPLETE, FULLY IMPLEMENTED ALGORITHMIC SOLUTION for ${langUpper}. Under NO circumstances return an empty stub, 'pass', 'return null;', or boilerplate shell.
   `.trim();
 

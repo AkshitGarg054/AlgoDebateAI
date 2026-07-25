@@ -46,18 +46,32 @@ Write the complete optimal solution strictly in ${langUpper} (e.g. C++, Python, 
 Guidelines:
 1. Write code strictly in ${langUpper}.
 2. MANDATORY LEETCODE FUNCTION SIGNATURE EXTRACTION:
-   - Carefully extract or deduce the EXACT method name, return type, and parameter types expected by LeetCode for the target problem.
+   - Carefully extract or deduce the EXACT method name, return type, and parameter types expected by LeetCode for the target problem across all data structures (Arrays, Strings, Trees, Linked Lists, Graphs, Matrix, DP).
    - For Tree problems: Use exact node pointers/classes (e.g. C++: 'bool isSameTree(TreeNode* p, TreeNode* q)' or 'TreeNode* invertTree(TreeNode* root)').
    - For Linked List problems: Use exact node pointers/classes (e.g. C++: 'ListNode* reverseList(ListNode* head)').
    - For Array / String / Matrix problems: Use exact container signatures (e.g. C++: 'vector<int>& nums', 'string s', 'vector<vector<int>>& matrix').
-   - Do NOT invent arbitrary parameter names or generic signatures like 'vector<int>& nums' for Tree, Graph, Linked List, or non-array questions under any circumstances! Preserve the starter template under '=== EXPORTED STARTER TEMPLATES ===' line-for-line.
+   - Do NOT invent arbitrary parameter names or generic signatures like 'vector<int>& nums' for Tree, Graph, Linked List, or non-array questions under any circumstances! Match the expected LeetCode problem signature line-for-line.
 
-3. DATA STRUCTURE & CLASS WRAPPING DEFINITIONS:
-   - For C++: Wrap solution inside 'class Solution { public: ... };'. Include necessary helper struct definitions (e.g. 'struct TreeNode', 'struct ListNode') if required for standalone compilation in the sandbox.
-   - For Python: Wrap solution strictly inside 'class Solution:' (e.g. 'def isSameTree(self, p: Optional[TreeNode], q: Optional[TreeNode]) -> bool:'). Include typing imports ('from typing import List, Dict, Optional').
-   - For Java: Wrap solution strictly inside 'class Solution' (e.g. 'public boolean isSameTree(TreeNode p, TreeNode q)'). Include 'import java.util.*;'.
+3. DATA STRUCTURE DEFINITION HANDLING (TreeNode, ListNode, etc.):
+   - Whenever custom structs/classes like 'TreeNode', 'ListNode', or custom Node structs are required, write them inside COMMENTED BLOCKS at the top of the solution file, e.g.:
+     /*
+     // Definition for a binary tree node.
+     struct TreeNode {
+         int val;
+         TreeNode *left;
+         TreeNode *right;
+         TreeNode() : val(0), left(nullptr), right(nullptr) {}
+         TreeNode(int x) : val(x), left(nullptr), right(nullptr) {}
+         TreeNode(int x, TreeNode *left, TreeNode *right) : val(x), left(left), right(right) {}
+     };
+     */
+   - For Python: Include the commented class definition at the top (e.g. '# Definition for a binary tree node.\n# class TreeNode:\n#     def __init__(self, val=0, left=None, right=None):').
+   - For Java: Include the commented class definition at the top inside /* ... */.
 
-4. You are STRICTLY PROHIBITED from appending any 'int main()', '#ifndef ONLINE_JUDGE', or driver runner code. The output MUST end cleanly after the class Solution block.
+4. CLEAN Solution CLASS FOCUS:
+   - Make sure the active, uncommented code ONLY contains the 'class Solution { ... }' block (or 'class Solution:' in Python / 'class Solution' in Java).
+   - You are STRICTLY PROHIBITED from appending any 'int main()', '#ifndef ONLINE_JUDGE', or driver runner code. The output MUST end cleanly right after the class Solution block.
+
 5. Ensure the time complexity is optimal for large input constraints.
 6. Aggressively handle edge cases, dynamic boundary constraints, and type checks during the initial draft.
 7. LeetCode Sample Test Context: Use extracted sample examples and constraints to guide your solution's correctness.
