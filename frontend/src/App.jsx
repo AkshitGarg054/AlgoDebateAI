@@ -225,6 +225,7 @@ function App() {
   // Custom Test Case States
   const [customInput, setCustomInput] = useState('');
   const [isCustomRunning, setIsCustomRunning] = useState(false);
+  const [customTestResult, setCustomTestResult] = useState(null);
 
   // Settings Modal & Prompt Customizer States
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
@@ -622,6 +623,7 @@ function App() {
     setTestCasesCount('0');
     setIsCopied(false);
     setElapsedTime(0);
+    setCustomTestResult(null);
     setTokensPerSecond(0);
     setCustomInput('');
     setIsCustomRunning(false);
@@ -869,6 +871,10 @@ function App() {
       if (finalCode) {
         setLiveCode(finalCode);
       }
+
+      if (result.problemDescription && result.problemDescription.trim().length > 0) {
+        setProblemDescription(result.problemDescription);
+      }
       
       socket.off(`job-progress:${tempJobId}`);
       socket.off(`job-completed:${tempJobId}`);
@@ -917,6 +923,7 @@ function App() {
     setFinalResult(null);
     setLiveCode(getLanguageStarterCode(language));
     setIsCopied(false);
+    setCustomTestResult(null);
 
     try {
       const response = await fetch('http://localhost:5000/api/debate', {
@@ -967,104 +974,31 @@ function App() {
     setJobState('active');
     setIsCustomRunning(true);
     setActiveNode('sandbox');
+    setCustomTestResult('⚡ Compiling & running custom test case in Sandbox...');
 
     socket.on(`custom_test_result:${tempJobId}`, async (data) => {
-      const isFailed = data.isFailed || data.result.includes('ERROR');
-      
-      setRoundsHistory(prev => {
-        const next = [
-          ...prev,
-          {
-            node: 'sandbox',
-            round: 0,
-            customOutput: data.result
-          }
-        ];
-        if (isFailed) {
-          next.push({
-            node: 'sandbox',
-            round: 0,
-            customOutput: '⚠️ Custom Test Failed -> Re-triggering Agent Debate'
-          });
+      setRoundsHistory(prev => [
+        ...prev,
+        {
+          node: 'sandbox',
+          round: 0,
+          customOutput: data.result
         }
-        return next;
-      });
+      ]);
 
+      setCustomTestResult(data.result);
       setIsCustomRunning(false);
       setActiveNode(null);
+      setJobState(finalResult ? 'completed' : 'idle');
       socket.off(`custom_test_result:${tempJobId}`);
-
-      if (isFailed) {
-        const newJobId = 'job_' + Date.now();
-        setJobId(newJobId);
-        setJobState('active');
-        setActiveNode('coder');
-        setCurrentRound(1);
-        setFinalResult(null);
-
-        const reTriggerDescription = `
-[RE-TRIGGER FEEDBACK]
-The C++ code has failed on a custom test case.
-
-Original Problem Description:
-${problemDescription}
-
-Failing Custom Input:
-${customInput}
-
-Failing Output / Error Stream:
-${data.result}
-
-Current Code Draft:
-\`\`\`cpp
-${liveCode}
-\`\`\`
-
-Please refactor and correct this C++ code so that it compiles and passes this custom test case and all edge cases.
-        `.trim();
-
-        setupJobWebSocketListeners(newJobId);
-
-        try {
-          const response = await fetch('http://localhost:5000/api/debate', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-              problemDescription: reTriggerDescription,
-              maxRounds,
-              jobId: newJobId,
-              language,
-              coderPrompt,
-              criticPrompt,
-              refinerPrompt
-            })
-          });
-
-          if (!response.ok) {
-            const errData = await response.json();
-            throw new Error(errData.error || 'Failed to submit re-trigger debate.');
-          }
-
-        } catch (err) {
-          setJobState('failed');
-          setError(err.message);
-          
-          socket.off(`job-progress:${newJobId}`);
-          socket.off(`job-completed:${newJobId}`);
-          socket.off(`job-failed:${newJobId}`);
-        }
-      } else {
-        setJobState('completed');
-      }
     });
 
     socket.emit('run_custom_test', {
       jobId: tempJobId,
       inputData: customInput,
       code: liveCode,
-      language
+      language,
+      problemDescription
     });
   };
 
@@ -1192,7 +1126,12 @@ Please refactor and correct this C++ code so that it compiles and passes this cu
         msg = log.replace(/\[ROUND\s+\d+\]/i, '').trim();
       }
 
-      if (log.includes('⚔️ DEBATE IN PROGRESS')) {
+      if (log.startsWith('[SUCCESS]') || log.startsWith('[COMPILATION ERROR]') || log.startsWith('[RUNTIME ERROR]') || log.startsWith('[TIMEOUT ERROR]') || log.startsWith('[ERROR]')) {
+        const isSuccess = log.startsWith('[SUCCESS]');
+        status = isSuccess ? 'SUCCESS' : 'FAILED';
+        badgeType = isSuccess ? 'success' : 'rejected';
+        msg = log;
+      } else if (log.includes('⚔️ DEBATE IN PROGRESS')) {
         status = 'BATTLE';
         badgeType = 'rejected';
       } else if (log.includes('VERDICT: REJECTED') || log.includes('failed') || log.includes('FAILED') || log.includes('aborted') || log.includes('Error')) {
@@ -1534,6 +1473,58 @@ Please refactor and correct this C++ code so that it compiles and passes this cu
                     </>
                   )}
                 </button>
+
+                {customTestResult && (
+                  <div className="custom-test-result-box fade-in" style={{
+                    marginTop: '4px',
+                    padding: '8px 10px',
+                    background: '#040507',
+                    border: '1px solid rgba(255, 255, 255, 0.08)',
+                    borderRadius: '4px',
+                    fontFamily: 'var(--font-mono)',
+                    fontSize: '0.72rem',
+                    color: '#cbd5e1',
+                    whiteSpace: 'pre-wrap',
+                    maxHeight: '140px',
+                    overflowY: 'auto',
+                    boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.6)',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '4px'
+                  }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(255,255,255,0.06)', paddingBottom: '4px', marginBottom: '2px' }}>
+                      <span style={{ 
+                        color: customTestResult.includes('[SUCCESS]') ? '#34d399' : customTestResult.includes('Compiling') ? '#38bdf8' : '#f87171', 
+                        fontWeight: 'bold',
+                        fontSize: '0.65rem',
+                        letterSpacing: '0.04em'
+                      }}>
+                        {customTestResult.includes('[SUCCESS]') ? '✓ RUN SUCCESS' : customTestResult.includes('Compiling') ? '⚡ RUNNING...' : '✗ RUN FAILED'}
+                      </span>
+                      <button 
+                        type="button"
+                        onClick={() => setCustomTestResult(null)}
+                        style={{ 
+                          background: 'transparent', 
+                          border: 'none', 
+                          color: '#64748b', 
+                          cursor: 'pointer', 
+                          fontSize: '1rem',
+                          lineHeight: '1',
+                          padding: '0 2px',
+                          display: 'flex',
+                          alignItems: 'center'
+                        }}
+                        className="hover:text-white transition-colors"
+                      >
+                        ×
+                      </button>
+                    </div>
+                    <div style={{ wordBreak: 'break-word', color: customTestResult.includes('[SUCCESS]') ? '#e2e8f0' : customTestResult.includes('Compiling') ? '#94a3b8' : '#fca5a5' }}>
+                      {customTestResult}
+                    </div>
+                  </div>
+                )}
               </div>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginTop: '4px' }}>
@@ -2238,7 +2229,7 @@ Please refactor and correct this C++ code so that it compiles and passes this cu
                   return (
                     <div key={index} className="terminal-log-line" style={{ marginBottom: '4px', display: 'flex', gap: '10px' }}>
                       <span style={{ color: '#475569', fontSize: '0.7rem', userSelect: 'none', minWidth: '24px' }}>{`${index + 1}.`}</span>
-                      <span style={logStyle}>{log}</span>
+                      <span style={{ ...logStyle, whiteSpace: 'pre-wrap' }}>{log}</span>
                     </div>
                   );
                 })

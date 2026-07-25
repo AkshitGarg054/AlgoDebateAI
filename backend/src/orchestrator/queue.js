@@ -276,7 +276,8 @@ Always map the problem slug to its exact standard LeetCode ${langUpper} class me
       // Return values are stored in Redis under the job state automatically
       return {
         status: 'COMPLETED',
-        finalResult
+        finalResult,
+        problemDescription: finalProblemDescription
       };
     } catch (err) {
       console.error(`[Worker] Job ${job.id} execution failed:`, err);

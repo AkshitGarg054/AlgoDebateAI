@@ -336,7 +336,10 @@ export async function executeCpp(code, testCases, language = 'cpp', timeoutMs = 
       modifiedCode = preHeaders + modifiedCode;
     }
     try {
-      const cppTemplate = extractLanguageSnippet(problemDescription, 'cpp');
+      let cppTemplate = extractLanguageSnippet(problemDescription, 'cpp');
+      if (!cppTemplate && code.includes('class Solution')) {
+        cppTemplate = code;
+      }
       if (cppTemplate && code.includes('class Solution')) {
         const signatureMatch = extractSignature(cppTemplate);
         if (signatureMatch) {
@@ -446,7 +449,10 @@ export async function executeCpp(code, testCases, language = 'cpp', timeoutMs = 
     }
 
     try {
-      const pyTemplate = extractLanguageSnippet(problemDescription, 'python');
+      let pyTemplate = extractLanguageSnippet(problemDescription, 'python');
+      if (!pyTemplate && code.includes('class Solution')) {
+        pyTemplate = code;
+      }
       if (pyTemplate) {
         const cleanTemplate = pyTemplate.replace(/#.*/g, '');
         const methodMatch = cleanTemplate.match(/def\s+(\w+)\s*\(([^)]*)\)/);
@@ -528,7 +534,10 @@ export async function executeCpp(code, testCases, language = 'cpp', timeoutMs = 
       modifiedCode = `import java.util.*;\nimport java.io.*;\nimport java.math.*;\n\n` + modifiedCode;
     }
     try {
-      const javaTemplate = extractLanguageSnippet(problemDescription, 'java');
+      let javaTemplate = extractLanguageSnippet(problemDescription, 'java');
+      if (!javaTemplate && code.includes('class Solution')) {
+        javaTemplate = code;
+      }
       if (javaTemplate) {
         const cleanTemplate = javaTemplate.replace(/\/\/.*|\/\*[\s\S]*?\*\//g, '');
         const methodMatch = cleanTemplate.match(/(\w[\w\s\*&<>:]+)\s+(\w+)\s*\(([^)]*)\)/);
