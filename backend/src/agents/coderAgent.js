@@ -45,26 +45,28 @@ Write the complete optimal solution strictly in ${langUpper} (e.g. C++, Python, 
 
 Guidelines:
 1. Write code strictly in ${langUpper}.
-2. EXACT LEETCODE METHOD NAMES & PARAMETERS:
-   - Always analyze the problem title and description to infer the EXACT standard LeetCode class method name (e.g. for "29. Divide Two Integers", method MUST be 'divide'; for "100. Same Tree", method MUST be 'isSameTree'; for "1. Two Sum", method MUST be 'twoSum'; for "31. Next Permutation", method MUST be 'nextPermutation').
-   - Do NOT invent arbitrary method names (such as 'divideTwoIntegers' or 'sameTree') under any circumstances!
-   - Strictly match the exact parameter types and order expected by LeetCode driver scripts across all problem categories (Arrays, Math, Strings, Trees, Linked Lists, Graphs, DP).
-   - For Tree problems: e.g. C++: 'bool isSameTree(TreeNode* p, TreeNode* q)', Python: 'def isSameTree(self, p: Optional[TreeNode], q: Optional[TreeNode]) -> bool:', Java: 'public boolean isSameTree(TreeNode p, TreeNode q)'.
-   - For Linked List problems: e.g. C++: 'ListNode* reverseList(ListNode* head)', Python: 'def reverseList(self, head: Optional[ListNode]) -> Optional[ListNode]:'.
+2. STARTER SIGNATURE PRIORITY:
+   - Always search the input text and starter templates for any provided function signature or method template.
+   - If a starter template or function header is provided under '=== EXPORTED STARTER TEMPLATES ===', extract and keep the exact method name, return type, and parameter list 100% UNCHANGED.
 
-3. DATA STRUCTURE BOILERPLATE COMMENTING:
-   - For C++: Wrap helper definitions ('struct TreeNode', 'struct ListNode') inside multiline comments /* ... */ at the top of the file so LeetCode's pre-defined structs do not throw redefinition errors.
-   - For Python: Keep helper class definitions commented out (# class TreeNode:, # class ListNode:) at the top of the file.
-   - For Java: Keep nested/helper class definitions commented inside /* ... */ blocks at the top of the file.
+3. STANDARD LEETCODE METHOD NAME MAPPING (Fallback Rule):
+   - If no starter code is provided, map the problem title to LeetCode's official standard camelCase method name (e.g., "Search Insert Position" -> 'searchInsert', "Same Tree" -> 'isSameTree', "Divide Two Integers" -> 'divide', "Sudoku Solver" -> 'solveSudoku', "Two Sum" -> 'twoSum').
+   - NEVER invent full-title or arbitrary method names (e.g., DO NOT use 'searchInsertPosition' or 'divideTwoIntegers').
 
-4. CLEAN Solution CLASS FOCUS:
-   - Make sure the active, uncommented code ONLY contains the 'class Solution { ... }' block (or 'class Solution:' in Python / 'class Solution' in Java).
-   - You are STRICTLY PROHIBITED from appending any 'int main()', '#ifndef ONLINE_JUDGE', or driver runner code. The output MUST end cleanly right after the class Solution block.
+4. LANGUAGE SPECIFIC SYNTAX ENFORCEMENT:
+   - For C++: Output inside 'class Solution { public: <exact_method_name>(...) { ... } };'
+   - For Python: Output inside 'class Solution: def <exact_method_name>(self, ...) -> <type>:' (include 'from typing import List, Dict, Optional').
+   - For Java: Output inside 'class Solution { public <type> <exact_method_name>(...) { ... } }' (include 'import java.util.*;').
 
-5. Ensure the time complexity is optimal for large input constraints.
-6. Aggressively handle edge cases, dynamic boundary constraints, and type checks during the initial draft.
-7. LeetCode Sample Test Context: Use extracted sample examples and constraints to guide your solution's correctness.
-8. FULL IMPLEMENTATION MANDATE: You are STRICTLY PROHIBITED from returning boilerplate stubs, placeholder comments, or empty function shells (such as 'pass' in Python, 'return null;' in Java, or empty function bodies in C++). You MUST generate the COMPLETE, FULL WORKING ALGORITHMIC LOGIC inside the function/method body for ${langUpper} that fully solves the problem.
+5. COMMENTED BOILERPLATE FOR CUSTOM DATA STRUCTURES:
+   - Keep data structure definitions (like 'struct TreeNode' or 'struct ListNode') enclosed in multiline/single-line comments (/* ... */ or # ...) at the very top of the generated code so they do not collide with LeetCode's pre-defined classes.
+
+6. CLEAN Solution CLASS FOCUS:
+   - Make sure the active, uncommented code ONLY contains the 'class Solution' block. You are STRICTLY PROHIBITED from appending any 'int main()', '#ifndef ONLINE_JUDGE', or driver runner code.
+
+7. Ensure the time complexity is optimal for large input constraints.
+8. Aggressively handle edge cases, dynamic boundary constraints, and type checks during the initial draft.
+9. FULL IMPLEMENTATION MANDATE: You are STRICTLY PROHIBITED from returning boilerplate stubs, placeholder comments, or empty function shells (such as 'pass' in Python, 'return null;' in Java, or empty function bodies in C++). You MUST generate the COMPLETE, FULL WORKING ALGORITHMIC LOGIC inside the function/method body for ${langUpper} that fully solves the problem.
   `.trim();
 
   // Dynamically configure description based on language

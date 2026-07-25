@@ -6,8 +6,10 @@ import fetch from 'node-fetch'; // if node-fetch is not installed, Node 18+ has 
 export function slugToCamelCase(slug) {
   if (!slug) return 'solve';
   const specialMap = {
+    'search-insert-position': 'searchInsert',
     'same-tree': 'isSameTree',
     'divide-two-integers': 'divide',
+    'sudoku-solver': 'solveSudoku',
     'reverse-linked-list': 'reverseList',
     'invert-binary-tree': 'invertTree',
     'merge-two-sorted-lists': 'mergeTwoLists',
@@ -115,7 +117,30 @@ export function getStaticFallbackProblem(slug) {
   const formattedTitle = slug.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
   let snippetsText = '';
 
-  if (slug === 'same-tree') {
+  if (slug === 'search-insert-position') {
+    snippetsText = `
+=== EXPORTED STARTER TEMPLATES ===
+C++:
+class Solution {
+public:
+    int searchInsert(vector<int>& nums, int target) {
+        
+    }
+};
+
+Python:
+class Solution:
+    def searchInsert(self, nums: List[int], target: int) -> int:
+        pass
+
+Java:
+class Solution {
+    public int searchInsert(int[] nums, int target) {
+        return 0;
+    }
+}
+`;
+  } else if (slug === 'same-tree') {
     snippetsText = `
 === EXPORTED STARTER TEMPLATES ===
 C++:

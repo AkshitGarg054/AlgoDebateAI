@@ -47,19 +47,12 @@ Write the complete optimal solution strictly in ${langUpper} (e.g. C++, Python, 
 
 Universal Polish & Error Rectification Framework:
 1. ERROR RECTIFICATION: Inspect the debate history. If any round had sandbox execution faults (like COMPILE_ERROR, TLE, RTE, segmentation faults) or stderr streams, ensure that your final code draft fully resolves all of those issues and contains no trace of the faults.
-2. EXACT LEETCODE METHOD NAMES & PARAMETERS:
-   - Always analyze the problem title and description to infer the EXACT standard LeetCode class method name (e.g. for "29. Divide Two Integers", method MUST be 'divide'; for "100. Same Tree", method MUST be 'isSameTree'; for "1. Two Sum", method MUST be 'twoSum'; for "31. Next Permutation", method MUST be 'nextPermutation').
-   - Do NOT invent arbitrary method names (such as 'divideTwoIntegers' or 'sameTree') under any circumstances!
-   - Strictly match the exact parameter types and order expected by LeetCode driver scripts across all problem categories (Arrays, Math, Strings, Trees, Linked Lists, Graphs, DP).
-3. DATA STRUCTURE BOILERPLATE COMMENTING:
-   - For C++: Wrap helper definitions ('struct TreeNode', 'struct ListNode') inside multiline comments /* ... */ at the top of the file so LeetCode's pre-defined structs do not throw redefinition errors.
-   - For Python: Keep helper class definitions commented out (# class TreeNode:, # class ListNode:) at the top of the file.
-   - For Java: Keep nested/helper class definitions commented inside /* ... */ blocks at the top of the file.
-4. CLEAN Solution CLASS FOCUS:
-   - Make sure the active, uncommented code ONLY contains the 'class Solution { ... }' block (or 'class Solution:' in Python / 'class Solution' in Java).
-   - Completely remove any helper 'main' function, stdin/stdout operations, or preprocessor blocks.
-5. SYNTAX POLISHING & STRUCTURED SCHEMAS: Make sure the returned ${langUpper} code uses clean, standard formatting with correct newlines and indentation. Provide the final code, explanation, time complexity, and space complexity in strict JSON format.
-6. FULL IMPLEMENTATION MANDATE: Ensure that 'finalCode' contains the COMPLETE, FULLY IMPLEMENTED ALGORITHMIC SOLUTION for ${langUpper}. Under NO circumstances return an empty stub, 'pass', 'return null;', or boilerplate shell.
+2. STARTER SIGNATURE PRIORITY: If a starter template or function header is provided in the prompt or history, keep the exact method name, return type, and parameter list 100% UNCHANGED.
+3. STANDARD LEETCODE METHOD NAME MAPPING (Fallback Rule): If no starter code is provided, map the problem title to LeetCode's official standard camelCase method name (e.g. "Search Insert Position" -> 'searchInsert', "Same Tree" -> 'isSameTree', "Divide Two Integers" -> 'divide', "Sudoku Solver" -> 'solveSudoku'). NEVER invent full-title or arbitrary method names (DO NOT use 'searchInsertPosition' or 'divideTwoIntegers').
+4. COMMENTED BOILERPLATE FOR CUSTOM DATA STRUCTURES: Keep data structure definitions (like 'struct TreeNode' or 'struct ListNode') enclosed in multiline/single-line comments (/* ... */ or # ...) at the very top of the generated code so they do not collide with LeetCode's pre-defined classes.
+5. CLEAN Solution CLASS FOCUS: Make sure the active, uncommented code ONLY contains the 'class Solution' block. Completely remove any helper 'main' function, stdin/stdout operations, or preprocessor blocks.
+6. SYNTAX POLISHING & STRUCTURED SCHEMAS: Make sure the returned ${langUpper} code uses clean, standard formatting with correct newlines and indentation. Provide the final code, explanation, time complexity, and space complexity in strict JSON format.
+7. FULL IMPLEMENTATION MANDATE: Ensure that 'finalCode' contains the COMPLETE, FULLY IMPLEMENTED ALGORITHMIC SOLUTION for ${langUpper}. Under NO circumstances return an empty stub, 'pass', 'return null;', or boilerplate shell.
   `.trim();
 
   const RefinerResponseSchema = {
