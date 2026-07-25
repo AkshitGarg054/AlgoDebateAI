@@ -5,6 +5,18 @@ import fetch from 'node-fetch'; // if node-fetch is not installed, Node 18+ has 
  */
 export function slugToCamelCase(slug) {
   if (!slug) return 'solve';
+  const specialMap = {
+    'same-tree': 'isSameTree',
+    'divide-two-integers': 'divide',
+    'reverse-linked-list': 'reverseList',
+    'invert-binary-tree': 'invertTree',
+    'merge-two-sorted-lists': 'mergeTwoLists',
+    'linked-list-cycle': 'hasCycle',
+    'validate-binary-search-tree': 'isValidBST',
+    'binary-tree-inorder-traversal': 'inorderTraversal',
+    'maximum-depth-of-binary-tree': 'maxDepth',
+  };
+  if (specialMap[slug]) return specialMap[slug];
   return slug.split('-')
     .map((w, index) => index === 0 ? w : w.charAt(0).toUpperCase() + w.slice(1))
     .join('');
@@ -99,11 +111,89 @@ class Solution {
 /**
  * Returns static fallback problem definitions with exact LeetCode C++, Python, Java boilerplate signatures
  */
-function getStaticFallbackProblem(slug) {
+export function getStaticFallbackProblem(slug) {
   const formattedTitle = slug.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
   let snippetsText = '';
 
-  if (slug === 'word-ladder-ii') {
+  if (slug === 'same-tree') {
+    snippetsText = `
+=== EXPORTED STARTER TEMPLATES ===
+C++:
+/*
+// Definition for a binary tree node.
+struct TreeNode {
+    int val;
+    TreeNode *left;
+    TreeNode *right;
+    TreeNode() : val(0), left(nullptr), right(nullptr) {}
+    TreeNode(int x) : val(x), left(nullptr), right(nullptr) {}
+    TreeNode(int x, TreeNode *left, TreeNode *right) : val(x), left(left), right(right) {}
+};
+*/
+class Solution {
+public:
+    bool isSameTree(TreeNode* p, TreeNode* q) {
+        
+    }
+};
+
+Python:
+# Definition for a binary tree node.
+# class TreeNode:
+#     def __init__(self, val=0, left=None, right=None):
+#         self.val = val
+#         self.left = left
+#         self.right = right
+class Solution:
+    def isSameTree(self, p: Optional[TreeNode], q: Optional[TreeNode]) -> bool:
+        pass
+
+Java:
+/*
+ * Definition for a binary tree node.
+ * public class TreeNode {
+ *     int val;
+ *     TreeNode left;
+ *     TreeNode right;
+ *     TreeNode() {}
+ *     TreeNode(int val) { this.val = val; }
+ *     TreeNode(int val, TreeNode left, TreeNode right) {
+ *         this.val = val;
+ *         this.left = left;
+ *         this.right = right;
+ *     }
+ * }
+ */
+class Solution {
+    public boolean isSameTree(TreeNode p, TreeNode q) {
+        return false;
+    }
+}
+`;
+  } else if (slug === 'divide-two-integers') {
+    snippetsText = `
+=== EXPORTED STARTER TEMPLATES ===
+C++:
+class Solution {
+public:
+    int divide(int dividend, int divisor) {
+        
+    }
+};
+
+Python:
+class Solution:
+    def divide(self, dividend: int, divisor: int) -> int:
+        pass
+
+Java:
+class Solution {
+    public int divide(int dividend, int divisor) {
+        return 0;
+    }
+}
+`;
+  } else if (slug === 'word-ladder-ii') {
     snippetsText = `
 === EXPORTED STARTER TEMPLATES ===
 C++:

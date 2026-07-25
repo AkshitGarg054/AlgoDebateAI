@@ -45,27 +45,17 @@ Write the complete optimal solution strictly in ${langUpper} (e.g. C++, Python, 
 
 Guidelines:
 1. Write code strictly in ${langUpper}.
-2. STRICT METHOD NAMING & SIGNATURE EXTRACTION:
-   - Always use standard, exact LeetCode method names (e.g. 'isSameTree' instead of 'sameTree', 'invertTree', 'mergeTwoLists', 'hasCycle', 'nextPermutation', 'twoSum').
-   - For Tree problems in Python: Use exact parameters and return type annotations, e.g., 'def isSameTree(self, p: Optional[TreeNode], q: Optional[TreeNode]) -> bool:' or 'def invertTree(self, root: Optional[TreeNode]) -> Optional[TreeNode]:'. Do NOT use generic 'nums: List[int]' for Tree, Linked List, or non-array questions!
-   - For Linked List problems in Python: Use 'head: Optional[ListNode] -> Optional[ListNode]'.
-   - For Array / Matrix / String problems: Use exact signatures (e.g. 'nums: List[int]', 's: str', 'matrix: List[List[int]]').
+2. EXACT LEETCODE METHOD NAMES & PARAMETERS:
+   - Always analyze the problem title and description to infer the EXACT standard LeetCode class method name (e.g. for "29. Divide Two Integers", method MUST be 'divide'; for "100. Same Tree", method MUST be 'isSameTree'; for "1. Two Sum", method MUST be 'twoSum'; for "31. Next Permutation", method MUST be 'nextPermutation').
+   - Do NOT invent arbitrary method names (such as 'divideTwoIntegers' or 'sameTree') under any circumstances!
+   - Strictly match the exact parameter types and order expected by LeetCode driver scripts across all problem categories (Arrays, Math, Strings, Trees, Linked Lists, Graphs, DP).
+   - For Tree problems: e.g. C++: 'bool isSameTree(TreeNode* p, TreeNode* q)', Python: 'def isSameTree(self, p: Optional[TreeNode], q: Optional[TreeNode]) -> bool:', Java: 'public boolean isSameTree(TreeNode p, TreeNode q)'.
+   - For Linked List problems: e.g. C++: 'ListNode* reverseList(ListNode* head)', Python: 'def reverseList(self, head: Optional[ListNode]) -> Optional[ListNode]:'.
 
-3. COMMENTED DATA STRUCTURE DEFINITION AT TOP:
-   - For Python Tree problems: Keep the commented definition at the top of Python output:
-     # Definition for a binary tree node.
-     # class TreeNode:
-     #     def __init__(self, val=0, left=None, right=None):
-     #         self.val = val
-     #         self.left = left
-     #         self.right = right
-   - For Python Linked List problems:
-     # Definition for singly-linked list.
-     # class ListNode:
-     #     def __init__(self, val=0, next=None):
-     #         self.val = val
-     #         self.next = next
-   - For C++ / Java: Keep custom struct/class definitions inside commented blocks (e.g. /* struct TreeNode { ... }; */) at the top of the file so built-in LeetCode definitions work seamlessly.
+3. DATA STRUCTURE BOILERPLATE COMMENTING:
+   - For C++: Wrap helper definitions ('struct TreeNode', 'struct ListNode') inside multiline comments /* ... */ at the top of the file so LeetCode's pre-defined structs do not throw redefinition errors.
+   - For Python: Keep helper class definitions commented out (# class TreeNode:, # class ListNode:) at the top of the file.
+   - For Java: Keep nested/helper class definitions commented inside /* ... */ blocks at the top of the file.
 
 4. CLEAN Solution CLASS FOCUS:
    - Make sure the active, uncommented code ONLY contains the 'class Solution { ... }' block (or 'class Solution:' in Python / 'class Solution' in Java).

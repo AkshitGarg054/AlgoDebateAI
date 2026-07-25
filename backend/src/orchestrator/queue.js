@@ -1,6 +1,6 @@
 import { Queue, Worker } from 'bullmq';
 import { debateGraph } from './debateGraph.js';
-import { fetchLeetCodeProblem, withTimeout, slugToCamelCase, stripMarkdown } from '../utils/leetcode.js';
+import { fetchLeetCodeProblem, getStaticFallbackProblem, withTimeout, slugToCamelCase, stripMarkdown } from '../utils/leetcode.js';
 import { extractSampleTestCases } from '../utils/parser.js';
 
 // Connection options to Docker Redis running on port 6379
@@ -165,43 +165,7 @@ class Solution {
           inferRequirements = true;
           
           const slug = urlToFetch.match(/problems\/([^/]+)/)?.[1] || 'algorithm-problem';
-          const formattedTitle = slug.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
-          const methodName = slugToCamelCase(slug);
-
-          const cleanDesc = stripMarkdown(problemDescription);
-          const cleanUrlInput = stripMarkdown(problemUrl);
-          let extraContext = '';
-          if (cleanDesc && !cleanDesc.includes(urlToFetch)) {
-            extraContext += `\n\nAdditional Description Context:\n${cleanDesc}`;
-          }
-          if (cleanUrlInput && !cleanUrlInput.includes(urlToFetch)) {
-            extraContext += `\n\nAdditional Input Context:\n${cleanUrlInput}`;
-          }
-          
-          const defaultSnippets = `
-=== EXPORTED STARTER TEMPLATES ===
-C++:
-class Solution {
-public:
-    long long ${methodName}(vector<int>& nums) {
-        // Default fallback solution
-        return 0;
-    }
-};
-
-Python:
-class Solution:
-    def ${methodName}(self, nums: List[int]) -> int:
-        pass
-
-Java:
-class Solution {
-    public long ${methodName}(int[] nums) {
-        return 0;
-    }
-}
-`;
-          finalProblemDescription = `Title: ${formattedTitle}\n\nProblem Description:\nPlease write a solution for the LeetCode problem "${formattedTitle}".\n\nProblem URL: ${urlToFetch}${extraContext}\n${defaultSnippets}`;
+          finalProblemDescription = getStaticFallbackProblem(slug);
         }
       }
 
