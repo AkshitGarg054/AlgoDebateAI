@@ -24,7 +24,7 @@ export async function generateNaiveSolver(problemDescription) {
 
   try {
     const response = await ai.models.generateContent({
-      model: 'gemini-1.5-flash',
+      model: 'gemini-flash-lite-latest',
       contents: prompt,
       config: {
         temperature: 0.1,
@@ -58,7 +58,7 @@ export async function generateTestCaseGenerator(problemDescription) {
 
   try {
     const response = await ai.models.generateContent({
-      model: 'gemini-1.5-flash',
+      model: 'gemini-flash-lite-latest',
       contents: prompt,
       config: {
         temperature: 0.7,

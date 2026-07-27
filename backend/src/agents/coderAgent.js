@@ -121,7 +121,7 @@ Guidelines:
 
   try {
     const response = await ai.models.generateContent({
-      model: 'gemini-1.5-flash',
+      model: 'gemini-flash-lite-latest',
       contents: prompt,
       config: {
         systemInstruction,
@@ -220,7 +220,7 @@ Generate test cases covering:
 
   try {
     const response = await ai.models.generateContent({
-      model: 'gemini-1.5-flash',
+      model: 'gemini-flash-lite-latest',
       contents: prompt,
       config: {
         systemInstruction,
