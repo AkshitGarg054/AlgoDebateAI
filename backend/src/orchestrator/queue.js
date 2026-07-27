@@ -8,10 +8,12 @@ dotenv.config({ path: '../../.env' }); // Ensure env vars are loaded
 
 // Connection options to Redis
 // Uses UPSTASH_REDIS_URL (or REDIS_URL) if available, otherwise defaults to local Docker Redis
-const connection = process.env.UPSTASH_REDIS_URL || process.env.REDIS_URL || {
-  host: 'localhost',
-  port: 6379
-};
+import IORedis from 'ioredis';
+
+const redisUrl = process.env.UPSTASH_REDIS_URL || process.env.REDIS_URL;
+const connection = redisUrl 
+  ? new IORedis(redisUrl, { maxRetriesPerRequest: null }) 
+  : { host: 'localhost', port: 6379, maxRetriesPerRequest: null };
 
 /**
  * 1. Initialize the BullMQ Job Queue.
