@@ -62,3 +62,10 @@ This guide is designed to help you prepare for full-stack and frontend system de
 
 ### Q4: How does your frontend handle user browser refreshes without losing job progress?
 * **Answer:** We implemented a recovery endpoint `GET /api/debate/:jobId`. When a user submits a job, we store the `jobId` in the application state. If the user refreshes their browser, the client checks if there is an active `jobId` in the session. It queries our GET endpoint. The backend looks up the job in Redis (`debateQueue.getJob(jobId)`), fetches its current state and progress history, and returns it to the client, allowing the UI to reconstruct the exact state of the debate seamlessly.
+
+
+## Custom Testing & The Debate Debugger
+
+To handle edge cases without running the entire suite, a **Custom Test Panel** was implemented using a glassmorphic React Modal. 
+
+If a test case fails, a direct hook (`handleLaunchDebugDebate`) calls a specialized endpoint `/api/debate/debug` which injects the failed test output directly into the Critic agent's prompt, triggering an **Agent Debate Debug** round. This demonstrates the immense flexibility of LangGraph state architectures—allowing branching states from arbitrary frontend triggers.

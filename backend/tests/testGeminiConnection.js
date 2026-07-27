@@ -22,9 +22,9 @@ const ai = new GoogleGenAI({ apiKey });
 async function testConnection() {
   console.log('Attempting to connect to Gemini API...');
   
-  // 2. We use gemini-flash-lite-latest for high availability on the free tier
+  // 2. We use gemini-2.0-flash for high availability on the free tier
   const response = await ai.models.generateContent({
-    model: 'gemini-flash-lite-latest',
+    model: 'gemini-2.0-flash',
     contents: 'Say hello and say: "I am connected to AlgoDebate AI!"',
   });
 

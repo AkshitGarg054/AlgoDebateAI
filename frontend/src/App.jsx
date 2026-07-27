@@ -152,6 +152,7 @@ const renderFormattedMarkdown = (text) => {
 };
 
 function App() {
+  const [theme, setTheme] = useState('dark');
   const [isConnected, setIsConnected] = useState(socket.connected);
   const [toastMessage, setToastMessage] = useState(null);
   const [isStrategyExpanded, setIsStrategyExpanded] = useState(true);
@@ -171,6 +172,12 @@ function App() {
   const [activeModal, setActiveModal] = useState(null); // null, 'complexity', 'strategy'
   const [isModalMaximized, setIsModalMaximized] = useState(false);
   const [isCustomTestOpen, setIsCustomTestOpen] = useState(false);
+
+  
+  // Apply theme to document
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', theme);
+  }, [theme]);
 
   // Keyboard shortcut listener to dismiss modal with Escape key
   useEffect(() => {
@@ -1482,7 +1489,7 @@ function App() {
                   className="btn-run-custom-test"
                   onClick={() => setIsCustomTestOpen(true)}
                   style={{
-                    background: 'rgba(255, 255, 255, 0.03)',
+                    background: 'var(--bg-hover)',
                     border: '1px dashed rgba(255, 255, 255, 0.15)',
                     color: '#94a3b8',
                     padding: '8px',
@@ -2240,7 +2247,7 @@ function App() {
                 fontFamily: 'var(--font-mono)', 
                 fontSize: '0.75rem', 
                 lineHeight: '1.6',
-                background: '#040507',
+                background: 'var(--bg-input)',
                 color: '#cbd5e1'
               }}
             >
@@ -2487,7 +2494,7 @@ function App() {
                   onClick={handleTabCopy}
                   title="Copy Content"
                   style={{
-                    background: 'rgba(255, 255, 255, 0.05)',
+                    background: 'var(--bg-hover)',
                     border: '1px solid rgba(255, 255, 255, 0.1)',
                     color: '#94a3b8',
                     cursor: 'pointer',
@@ -2510,7 +2517,7 @@ function App() {
                   onClick={handleTabDownload}
                   title="Download Document"
                   style={{
-                    background: 'rgba(255, 255, 255, 0.05)',
+                    background: 'var(--bg-hover)',
                     border: '1px solid rgba(255, 255, 255, 0.1)',
                     color: '#94a3b8',
                     cursor: 'pointer',
@@ -2740,7 +2747,7 @@ function App() {
                   <div className="custom-test-result-box fade-in" style={{
                     marginTop: '8px',
                     padding: '14px 16px',
-                    background: '#040507',
+                    background: 'var(--bg-input)',
                     border: '1px solid rgba(255, 255, 255, 0.08)',
                     borderRadius: '6px',
                     fontFamily: 'var(--font-mono)',
@@ -2822,7 +2829,7 @@ function App() {
                                   onChange={(e) => setCustomExpectedOutput(e.target.value)}
                                   style={{
                                     width: '100%',
-                                    background: '#040507',
+                                    background: 'var(--bg-input)',
                                     border: '1px solid rgba(255,255,255,0.15)',
                                     borderRadius: '4px',
                                     padding: '10px 12px',

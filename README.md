@@ -67,7 +67,7 @@ The orchestrator is built on top of `@langchain/langgraph` using a stateful dire
   * **C++:** Native `g++` compiler (supporting `-O3` compilation optimization).
   * **Python 3:** `python3` / `python` interpreter with `typing`, `collections`, `math`, `sys`, and `json` modules.
   * **Java:** `javac` compiler and `java` runtime engine (supporting `java.util.*`, `java.io.*`, `java.math.*`).
-* **AI Model:** `gemini-flash-lite-latest` (fast, structured JSON response outputs).
+* **AI Model:** `gemini-2.0-flash` (blazing-fast, structured JSON response outputs).
 
 ---
 
@@ -89,6 +89,9 @@ The Refiner agent cleanly parses markdown code blocks (` ```python `, ` ```java 
 ### 4. Glassmorphic Pipeline Status Engine
 The visualizer acts as an active CI/CD pipeline. Nodes dynamically update states (`pending`, `active`, `completed`, `failed`) and display dynamic Verification Confidence progression (`0%` -> `25%` -> `50%` -> `75%` -> `100%`) with smooth hardware-accelerated animations.
 
+
+### 5. Advanced Custom Testing & Debugging
+The platform features a dedicated **Custom Test Panel** popup for evaluating edge cases against the sandboxed logic without cluttering the UI. If a custom test fails, you can trigger the **Agent Debate Debugger**, which forces the LangGraph state machine to perform a focused, on-the-fly debugging round to analyze exactly why the code failed your specific input.
 ---
 
 ## 🚀 Local Development Setup
