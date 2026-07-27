@@ -31,7 +31,8 @@ import {
   Maximize2,
   Minimize2,
   ChevronDown,
-  Activity
+  Activity,
+  Edit
 } from 'lucide-react';
 import './App.css';
 
@@ -60,7 +61,8 @@ const unescapeHtmlEntities = (str) => {
     .replace(/&#39;/g, "'")
     .replace(/&lt;/g, '<')
     .replace(/&gt;/g, '>')
-    .replace(/&amp;/g, '&');
+    .replace(/&amp;/g, '&')
+    .replace(/&nbsp;/g, ' ');
 };
 
 /**
@@ -90,12 +92,15 @@ const formatLatexFormula = (str) => {
   formatted = formatted.replace(/\\infty/g, '∞');
   formatted = formatted.replace(/\\frac\{([^}]+)\}\{([^}]+)\}/g, '$1/$2');
 
-  // Convert common exponents like ^2, ^3, ^k, ^n, ^5 into superscripts ² ³ ᵏ ⁿ ⁵
-  formatted = formatted.replace(/\^2/g, '²');
-  formatted = formatted.replace(/\^3/g, '³');
-  formatted = formatted.replace(/\^5/g, '⁵');
-  formatted = formatted.replace(/\^k/g, 'ᵏ');
-  formatted = formatted.replace(/\^n/g, 'ⁿ');
+  // Convert common exponents into superscripts dynamically
+  const supMap = {
+    '0': '⁰', '1': '¹', '2': '²', '3': '³', '4': '⁴',
+    '5': '⁵', '6': '⁶', '7': '⁷', '8': '⁸', '9': '⁹',
+    'n': 'ⁿ', 'k': 'ᵏ', '-': '⁻', '+': '⁺'
+  };
+  formatted = formatted.replace(/\^\{?([0-9nk\-\+]+)\}?/g, (match, p1) => {
+    return p1.split('').map(char => supMap[char] || char).join('');
+  });
 
   // Strip math delimiters $...$ or $$...$$
   formatted = formatted.replace(/\$\$([\s\S]*?)\$\$/g, '$1');
@@ -225,9 +230,14 @@ function App() {
   // Custom Test Case States
   const [customInput, setCustomInput] = useState('');
   const [isCustomRunning, setIsCustomRunning] = useState(false);
+  const [customTestResult, setCustomTestResult] = useState(null);
+  const [customExpectedOutput, setCustomExpectedOutput] = useState('');
+  const [isInputtingExpected, setIsInputtingExpected] = useState(false);
+  const [isEditingCode, setIsEditingCode] = useState(false);
 
   // Settings Modal & Prompt Customizer States
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isDescriptionModalOpen, setIsDescriptionModalOpen] = useState(false);
   const [coderPrompt, setCoderPrompt] = useState(
     `You are an expert competitive programmer and algorithms specialist.\nYour task is to write high-quality, optimal, and compilable C++ code.\nGuidelines:\n1. Use standard C++ headers and include proper namespaces (e.g. #include <iostream>, using namespace std;).\n2. Read all test inputs from standard input (cin) and write outputs to standard output (cout).\n3. Do not include verbose print statements or prompts (e.g., "Enter number:"). Only print the final answer.\n4. Ensure the time complexity is optimal for large input constraints.\n5. Pay attention to edge cases: empty arrays, negative numbers, very large numbers (use long long if needed).`
   );
@@ -622,6 +632,7 @@ function App() {
     setTestCasesCount('0');
     setIsCopied(false);
     setElapsedTime(0);
+    setCustomTestResult(null);
     setTokensPerSecond(0);
     setCustomInput('');
     setIsCustomRunning(false);
@@ -869,6 +880,10 @@ function App() {
       if (finalCode) {
         setLiveCode(finalCode);
       }
+
+      if (result.problemDescription && result.problemDescription.trim().length > 0) {
+        setProblemDescription(result.problemDescription);
+      }
       
       socket.off(`job-progress:${tempJobId}`);
       socket.off(`job-completed:${tempJobId}`);
@@ -894,9 +909,10 @@ function App() {
   };
 
   // Submit problem API
-  const handleStartDebate = async (e) => {
-    e.preventDefault();
-    if (!problemDescription.trim() && !problemUrl.trim()) {
+  const handleStartDebate = async (e, overrideDescription = null) => {
+    e?.preventDefault?.();
+    const activeDesc = overrideDescription !== null ? overrideDescription : problemDescription;
+    if (!activeDesc.trim() && !problemUrl.trim()) {
       setError('Please enter a problem description or paste a LeetCode URL.');
       setJobState('failed');
       setHasExecuted(false);
@@ -917,6 +933,7 @@ function App() {
     setFinalResult(null);
     setLiveCode(getLanguageStarterCode(language));
     setIsCopied(false);
+    setCustomTestResult(null);
 
     try {
       const response = await fetch('http://localhost:5000/api/debate', {
@@ -925,7 +942,7 @@ function App() {
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-          problemDescription,
+          problemDescription: activeDesc,
           problemUrl,
           maxRounds,
           jobId: tempJobId,
@@ -967,105 +984,45 @@ function App() {
     setJobState('active');
     setIsCustomRunning(true);
     setActiveNode('sandbox');
+    setCustomTestResult('⚡ Compiling & running custom test case in Sandbox...');
 
     socket.on(`custom_test_result:${tempJobId}`, async (data) => {
-      const isFailed = data.isFailed || data.result.includes('ERROR');
-      
-      setRoundsHistory(prev => {
-        const next = [
-          ...prev,
-          {
-            node: 'sandbox',
-            round: 0,
-            customOutput: data.result
-          }
-        ];
-        if (isFailed) {
-          next.push({
-            node: 'sandbox',
-            round: 0,
-            customOutput: '⚠️ Custom Test Failed -> Re-triggering Agent Debate'
-          });
+      setRoundsHistory(prev => [
+        ...prev,
+        {
+          node: 'sandbox',
+          round: 0,
+          customOutput: data.result
         }
-        return next;
-      });
+      ]);
 
+      setCustomTestResult(data.result);
       setIsCustomRunning(false);
       setActiveNode(null);
+      setJobState(finalResult ? 'completed' : 'idle');
       socket.off(`custom_test_result:${tempJobId}`);
-
-      if (isFailed) {
-        const newJobId = 'job_' + Date.now();
-        setJobId(newJobId);
-        setJobState('active');
-        setActiveNode('coder');
-        setCurrentRound(1);
-        setFinalResult(null);
-
-        const reTriggerDescription = `
-[RE-TRIGGER FEEDBACK]
-The C++ code has failed on a custom test case.
-
-Original Problem Description:
-${problemDescription}
-
-Failing Custom Input:
-${customInput}
-
-Failing Output / Error Stream:
-${data.result}
-
-Current Code Draft:
-\`\`\`cpp
-${liveCode}
-\`\`\`
-
-Please refactor and correct this C++ code so that it compiles and passes this custom test case and all edge cases.
-        `.trim();
-
-        setupJobWebSocketListeners(newJobId);
-
-        try {
-          const response = await fetch('http://localhost:5000/api/debate', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-              problemDescription: reTriggerDescription,
-              maxRounds,
-              jobId: newJobId,
-              language,
-              coderPrompt,
-              criticPrompt,
-              refinerPrompt
-            })
-          });
-
-          if (!response.ok) {
-            const errData = await response.json();
-            throw new Error(errData.error || 'Failed to submit re-trigger debate.');
-          }
-
-        } catch (err) {
-          setJobState('failed');
-          setError(err.message);
-          
-          socket.off(`job-progress:${newJobId}`);
-          socket.off(`job-completed:${newJobId}`);
-          socket.off(`job-failed:${newJobId}`);
-        }
-      } else {
-        setJobState('completed');
-      }
     });
 
     socket.emit('run_custom_test', {
       jobId: tempJobId,
       inputData: customInput,
       code: liveCode,
-      language
+      language,
+      problemDescription
     });
+  };
+
+  const handleLaunchDebugDebate = (expectedOutput = '') => {
+    const exampleIndex = (roundsHistory.filter(step => step.node === 'sandbox').length) + 1 || 99;
+    const formattedExample = `\n\nExample ${exampleIndex} (Custom Debug Case):\nInput:\n${customInput.trim()}\nOutput:\n${expectedOutput.trim()}\n`;
+    const updatedDescription = problemDescription + formattedExample;
+    
+    setProblemDescription(updatedDescription);
+    setCustomTestResult(null);
+    setCustomExpectedOutput('');
+    setIsInputtingExpected(false);
+
+    handleStartDebate(null, updatedDescription);
   };
 
   const isNodeBefore = (nodeA, nodeB) => {
@@ -1192,7 +1149,12 @@ Please refactor and correct this C++ code so that it compiles and passes this cu
         msg = log.replace(/\[ROUND\s+\d+\]/i, '').trim();
       }
 
-      if (log.includes('⚔️ DEBATE IN PROGRESS')) {
+      if (log.startsWith('[SUCCESS]') || log.startsWith('[COMPILATION ERROR]') || log.startsWith('[RUNTIME ERROR]') || log.startsWith('[TIMEOUT ERROR]') || log.startsWith('[ERROR]')) {
+        const isSuccess = log.startsWith('[SUCCESS]');
+        status = isSuccess ? 'SUCCESS' : 'FAILED';
+        badgeType = isSuccess ? 'success' : 'rejected';
+        msg = log;
+      } else if (log.includes('⚔️ DEBATE IN PROGRESS')) {
         status = 'BATTLE';
         badgeType = 'rejected';
       } else if (log.includes('VERDICT: REJECTED') || log.includes('failed') || log.includes('FAILED') || log.includes('aborted') || log.includes('Error')) {
@@ -1226,7 +1188,12 @@ Please refactor and correct this C++ code so that it compiles and passes this cu
 
   // Bulletproof final code resolution cascade (never renders empty 6-line boilerplate once code is generated)
   const getFinalSolutionCode = useCallback(() => {
-    // 1. Direct finalResult.finalCode from backend completion event
+    // 1. Live code if it contains actual generated or edited solution
+    if (liveCode && liveCode.trim().length > 20 && !liveCode.includes('Select a problem')) {
+      return liveCode;
+    }
+
+    // 2. Direct finalResult.finalCode from backend completion event
     if (finalResult?.finalCode && finalResult.finalCode.trim().length > 20 && !finalResult.finalCode.includes('Select a problem')) {
       return cleanCodeForEditor(finalResult.finalCode);
     }
@@ -1383,7 +1350,7 @@ Please refactor and correct this C++ code so that it compiles and passes this cu
         <section className="panel-left h-[700px] max-h-[700px] flex flex-col justify-start gap-2.5 pb-2 overflow-hidden">
           
           {/* PROBLEM INPUT Section */}
-          <div className="bento-card" style={{ padding: '12px 14px', gap: '10px' }}>
+          <div className="bento-card" style={{ padding: '16px 14px', gap: '14px' }}>
             <h2 className="card-title">
               <FileText size={13} />
               PROBLEM INPUT
@@ -1398,49 +1365,62 @@ Please refactor and correct this C++ code so that it compiles and passes this cu
                   className="problem-url-input"
                   placeholder="Paste LeetCode Link (Optional)"
                   value={problemUrl}
-                  onChange={(e) => setProblemUrl(e.target.value)}
+                  onChange={(e) => {
+                    setProblemUrl(e.target.value);
+                    setProblemDescription('');
+                  }}
                   disabled={jobState === 'active'}
                 />
               </div>
-              <textarea
-                className="problem-textarea"
-                placeholder="Enter algorithm details or problem description..."
-                value={problemDescription}
-                onChange={(e) => setProblemDescription(e.target.value)}
-                disabled={jobState === 'active'}
-                style={{ height: '60px' }}
-              />
+              {problemDescription.trim() ? (
+                <div style={{ display: 'flex', gap: '6px', width: '100%', marginTop: '2px' }}>
+                  <button
+                    type="button"
+                    onClick={() => setIsDescriptionModalOpen(true)}
+                    style={{
+                      flex: 1,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '6px',
+                      background: 'rgba(56, 189, 248, 0.1)',
+                      border: '1px solid rgba(56, 189, 248, 0.3)',
+                      borderRadius: '6px',
+                      color: '#38bdf8',
+                      fontSize: '0.75rem',
+                      fontWeight: 600,
+                      padding: '8px 12px',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s',
+                      height: '34px',
+                      outline: 'none'
+                    }}
+                    className="hover:bg-[#38bdf8]/20"
+                  >
+                    <FileText size={12} style={{ color: '#38bdf8' }} />
+                    <span>View Full Description</span>
+                  </button>
+                </div>
+              ) : (
+                <textarea
+                  className="problem-textarea"
+                  placeholder="Enter algorithm details or problem description..."
+                  value={problemDescription}
+                  onChange={(e) => setProblemDescription(e.target.value)}
+                  disabled={jobState === 'active'}
+                  style={{ height: '80px' }}
+                />
+              )}
             </form>
           </div>
           
           {/* CONFIGURATION & EXECUTION Section */}
-          <div className="bento-card" style={{ padding: '12px 14px', gap: '10px' }}>
+          <div className="bento-card" style={{ padding: '14px 14px', gap: '12px' }}>
             <h2 className="card-title" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                 <Settings size={13} className="text-[#10B981]" />
                 <span>CONFIGURATION & EXECUTION</span>
               </div>
-              <button 
-                type="button"
-                onClick={() => setIsSettingsOpen(true)}
-                style={{
-                  background: 'transparent',
-                  border: 'none',
-                  color: 'var(--text-secondary)',
-                  cursor: 'pointer',
-                  padding: '2px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  fontSize: '0.85rem',
-                  lineHeight: '1',
-                  transition: 'transform 0.2s'
-                }}
-                onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.1)'}
-                onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1.0)'}
-                title="Configure System Prompts"
-              >
-                ⚙️
-              </button>
             </h2>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
@@ -1496,46 +1476,32 @@ Please refactor and correct this C++ code so that it compiles and passes this cu
               </div>
 
               {/* Custom Test Cases Box inside card */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginTop: '2px' }}>
-                <textarea
-                  placeholder="Enter custom inputs (e.g. 4 \n 3 5 8)"
-                  value={customInput}
-                  onChange={(e) => setCustomInput(e.target.value)}
-                  disabled={isCustomRunning}
-                  style={{
-                    width: '100%',
-                    height: '38px',
-                    background: 'var(--bg-input)',
-                    border: '1px solid var(--border-slate)',
-                    borderRadius: '4px',
-                    color: 'var(--text-primary)',
-                    padding: '6px 8px',
-                    fontFamily: 'var(--font-mono)',
-                    fontSize: '0.72rem',
-                    resize: 'none',
-                    outline: 'none'
-                  }}
-                />
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginTop: '2px', marginBottom: '8px' }}>
                 <button
                   type="button"
                   className="btn-run-custom-test"
-                  onClick={handleRunCustomTest}
-                  disabled={isCustomRunning || (!liveCode && !(finalResult?.finalCode))}
+                  onClick={() => setIsCustomTestOpen(true)}
+                  style={{
+                    background: 'rgba(255, 255, 255, 0.03)',
+                    border: '1px dashed rgba(255, 255, 255, 0.15)',
+                    color: '#94a3b8',
+                    padding: '8px',
+                    borderRadius: '4px',
+                    fontSize: '0.75rem',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    display: 'flex',
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                    gap: '6px'
+                  }}
+                  onMouseOver={(e) => { e.currentTarget.style.color = '#ffffff'; e.currentTarget.style.borderColor = '#94a3b8'; }}
+                  onMouseOut={(e) => { e.currentTarget.style.color = '#94a3b8'; e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.15)'; }}
                 >
-                  {isCustomRunning ? (
-                    <>
-                      <Loader2 size={11} className="animate-spin" />
-                      <span>Running...</span>
-                    </>
-                  ) : (
-                    <>
-                      <Play size={10} />
-                      <span>Run Custom Test</span>
-                    </>
-                  )}
+                  <Play size={12} />
+                  <span>Open Custom Test Panel</span>
                 </button>
               </div>
-
               <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginTop: '4px' }}>
                 <button
                   onClick={handleStartDebate}
@@ -1662,6 +1628,25 @@ Please refactor and correct this C++ code so that it compiles and passes this cu
               {/* Right Action Controls */}
               <div className="workspace-header-actions" style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0, marginLeft: 'auto' }}>
                 <div className="code-editor-actions" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <button 
+                    type="button" 
+                    className="editor-btn" 
+                    onClick={() => {
+                      if (!isEditingCode) {
+                        setLiveCode(getFinalSolutionCode());
+                      }
+                      setIsEditingCode(!isEditingCode);
+                    }}
+                    style={{ 
+                      borderColor: isEditingCode ? '#34d399' : 'var(--border-slate)',
+                      background: isEditingCode ? 'rgba(16, 185, 129, 0.1)' : 'var(--bg-card)',
+                      color: isEditingCode ? '#34d399' : 'var(--text-secondary)'
+                    }}
+                    title="Toggle edit/view mode"
+                  >
+                    <Edit size={11} />
+                    <span>{isEditingCode ? 'View Mode' : 'Edit Code'}</span>
+                  </button>
                   <button type="button" className="editor-btn" onClick={handleTabCopy} title="Copy solution code">
                     {isCopied ? <Check size={11} style={{ color: 'var(--accent-green)' }} /> : <Copy size={11} />}
                     <span>{isCopied ? 'Copied' : 'Copy Code'}</span>
@@ -1670,10 +1655,7 @@ Please refactor and correct this C++ code so that it compiles and passes this cu
                     <Download size={11} />
                     <span>Download</span>
                   </button>
-                  <button type="button" className="editor-btn" onClick={handleTabShare} title="Share solution link">
-                    <Share2 size={11} />
-                    <span>Share</span>
-                  </button>
+
                 </div>
               </div>
             </div>
@@ -1700,14 +1682,53 @@ Please refactor and correct this C++ code so that it compiles and passes this cu
                 </div>
               )}
               
-              <div className="code-editor-container custom-scrollbar fade-in">
-                {renderedCodeLines.map((line, idx) => (
-                  <div key={idx} className="code-line-row">
-                    <span className="code-line-number">{idx + 1}</span>
-                    {renderSyntaxHighlightedLine(line, language)}
-                  </div>
-                ))}
-              </div>
+              {isEditingCode ? (
+                <div className="code-editor-container custom-scrollbar fade-in" style={{ padding: '0', display: 'flex', flexDirection: 'column' }}>
+                  <textarea
+                    value={liveCode}
+                    onChange={(e) => setLiveCode(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Tab') {
+                        e.preventDefault();
+                        const start = e.target.selectionStart;
+                        const end = e.target.selectionEnd;
+                        const val = e.target.value;
+                        const newVal = val.substring(0, start) + '    ' + val.substring(end);
+                        setLiveCode(newVal);
+                        setTimeout(() => {
+                          e.target.selectionStart = e.target.selectionEnd = start + 4;
+                        }, 0);
+                      }
+                    }}
+                    disabled={jobState === 'active' || isCustomRunning}
+                    style={{
+                      flex: 1,
+                      width: '100%',
+                      height: '100%',
+                      background: 'transparent',
+                      border: 'none',
+                      color: '#cbd5e1',
+                      fontFamily: 'var(--font-mono, "JetBrains Mono", monospace)',
+                      fontSize: '0.82rem',
+                      lineHeight: '1.6rem',
+                      padding: '14px 16px',
+                      resize: 'none',
+                      outline: 'none',
+                      overflowY: 'auto'
+                    }}
+                    className="custom-scrollbar"
+                  />
+                </div>
+              ) : (
+                <div className="code-editor-container custom-scrollbar fade-in">
+                  {renderedCodeLines.map((line, idx) => (
+                    <div key={idx} className="code-line-row">
+                      <span className="code-line-number">{idx + 1}</span>
+                      {renderSyntaxHighlightedLine(line, language)}
+                    </div>
+                  ))}
+                </div>
+              )}
               {jobState === 'failed' && (
                 <div className="workspace-empty-view fade-in">
                   <AlertTriangle size={32} style={{ color: 'var(--accent-red)' }} />
@@ -2238,7 +2259,7 @@ Please refactor and correct this C++ code so that it compiles and passes this cu
                   return (
                     <div key={index} className="terminal-log-line" style={{ marginBottom: '4px', display: 'flex', gap: '10px' }}>
                       <span style={{ color: '#475569', fontSize: '0.7rem', userSelect: 'none', minWidth: '24px' }}>{`${index + 1}.`}</span>
-                      <span style={logStyle}>{log}</span>
+                      <span style={{ ...logStyle, whiteSpace: 'pre-wrap' }}>{log}</span>
                     </div>
                   );
                 })
@@ -2286,6 +2307,68 @@ Please refactor and correct this C++ code so that it compiles and passes this cu
             <div className="modal-footer">
               <button className="btn-verify-primary" onClick={() => setIsSettingsOpen(false)} style={{ width: '100px', height: '32px' }}>
                 Save Config
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Description Viewer Modal */}
+      {isDescriptionModalOpen && (
+        <div className="settings-modal-overlay fade-in" onClick={() => setIsDescriptionModalOpen(false)}>
+          <div className="settings-modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '800px', width: '90%' }}>
+            <div className="modal-header">
+              <h3 className="modal-title" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <FileText size={16} style={{ color: '#38bdf8' }} />
+                <span>Problem Description</span>
+              </h3>
+              <button className="modal-close-btn" onClick={() => setIsDescriptionModalOpen(false)}>×</button>
+            </div>
+            <div className="modal-body" style={{ maxHeight: '450px', overflowY: 'auto', padding: '16px' }}>
+              <div 
+                style={{ 
+                  color: '#cbd5e1', 
+                  fontSize: '0.9rem', 
+                  lineHeight: '1.6', 
+                  whiteSpace: 'pre-line', 
+                  wordBreak: 'break-word',
+                  background: 'rgba(0, 0, 0, 0.25)',
+                  border: '1px solid rgba(255, 255, 255, 0.05)',
+                  borderRadius: '6px',
+                  padding: '16px'
+                }}
+                className="custom-scrollbar"
+              >
+                {(() => {
+                  let text = problemDescription || '';
+                  const splitIndex = text.indexOf('=== EXPORTED STARTER TEMPLATES ===');
+                  if (splitIndex !== -1) {
+                    text = text.substring(0, splitIndex).trim();
+                  }
+                  const splitIndex2 = text.indexOf('=== EXTRACTED SAMPLE TEST CASES ===');
+                  if (splitIndex2 !== -1) {
+                    text = text.substring(0, splitIndex2).trim();
+                  }
+                  
+                  // Remove standalone ASCII carets (used for alignment in monospace)
+                  let cleanText = unescapeHtmlEntities(text);
+                  cleanText = cleanText.replace(/^[ \t]*\^[ \t]*$/gm, '');
+                  // Unwrap sentences broken by single newlines if the next line starts with a lowercase letter
+                  cleanText = cleanText.replace(/([^\n])\n([a-z])/g, '$1 $2');
+                  // Collapse more than 2 newlines
+                  cleanText = cleanText.replace(/\n{3,}/g, '\n\n');
+                  
+                  return formatLatexFormula(cleanText);
+                })()}
+              </div>
+            </div>
+            <div className="modal-footer">
+              <button 
+                className="btn-verify-primary" 
+                onClick={() => setIsDescriptionModalOpen(false)} 
+                style={{ width: '80px', height: '32px', background: '#38bdf8', color: '#000000', fontWeight: 'bold' }}
+              >
+                Close
               </button>
             </div>
           </div>
@@ -2578,6 +2661,254 @@ Please refactor and correct this C++ code so that it compiles and passes this cu
                   )}
                 </div>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+      {/* Custom Test Modal */}
+      {isCustomTestOpen && (
+        <div className="modal-overlay" style={{
+          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+          backgroundColor: 'rgba(5, 5, 5, 0.8)', backdropFilter: 'blur(4px)',
+          display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000
+        }} onClick={() => setIsCustomTestOpen(false)}>
+          <div className="modal-content" style={{
+            background: 'var(--bg-card)', border: '1px solid var(--border-slate)',
+            borderRadius: '12px', width: '600px', maxWidth: '90vw', maxHeight: '90vh',
+            display: 'flex', flexDirection: 'column', overflow: 'hidden', boxShadow: '0 20px 40px rgba(0,0,0,0.6)'
+          }} onClick={e => e.stopPropagation()}>
+            <div className="modal-header" style={{
+              display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+              padding: '16px 20px', borderBottom: '1px solid rgba(255, 255, 255, 0.08)', background: 'rgba(0, 0, 0, 0.2)'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#f8fafc', fontWeight: 700, fontSize: '0.95rem' }}>
+                <Play size={16} style={{ color: '#3b82f6' }} />
+                <span>Custom Test Configuration</span>
+              </div>
+              <button type="button" onClick={() => setIsCustomTestOpen(false)} style={{
+                background: 'transparent', border: 'none', color: '#94a3b8', cursor: 'pointer'
+              }} onMouseOver={(e) => e.currentTarget.style.color = '#f87171'} onMouseOut={(e) => e.currentTarget.style.color = '#94a3b8'}>
+                <X size={18} />
+              </button>
+            </div>
+            <div className="modal-body custom-scrollbar" style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '16px', overflowY: 'auto' }}>
+              <div style={{ fontSize: '0.8rem', color: '#cbd5e1', marginBottom: '8px' }}>
+                Enter custom input for the execution engine. Note that testing without custom test cases runs the default/hidden test cases instead.
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginTop: '2px' }}>
+                <textarea
+                  placeholder="Enter custom inputs (e.g. 4 \n 3 5 8)"
+                  value={customInput}
+                  onChange={(e) => setCustomInput(e.target.value)}
+                  disabled={isCustomRunning}
+                  style={{
+                    width: '100%',
+                    height: '100px',
+                    background: 'var(--bg-input)',
+                    border: '1px solid var(--border-slate)',
+                    borderRadius: '6px',
+                    color: 'var(--text-primary)',
+                    padding: '12px 14px',
+                    fontFamily: 'var(--font-mono)',
+                    fontSize: '0.85rem',
+                    resize: 'none',
+                    outline: 'none',
+                    marginBottom: '8px'
+                  }}
+                />
+                <button
+                  type="button"
+                  className="btn-run-custom-test"
+                  onClick={handleRunCustomTest}
+                  disabled={isCustomRunning || (!liveCode && !(finalResult?.finalCode))}
+                  style={{ padding: '12px', fontSize: '0.9rem', display: 'flex', justifyContent: 'center', gap: '8px', borderRadius: '6px' }}
+                >
+                  {isCustomRunning ? (
+                    <>
+                      <Loader2 size={11} className="animate-spin" />
+                      <span>Running...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Play size={10} />
+                      <span>Run Custom Test</span>
+                    </>
+                  )}
+                </button>
+
+                {customTestResult && (
+                  <div className="custom-test-result-box fade-in" style={{
+                    marginTop: '8px',
+                    padding: '14px 16px',
+                    background: '#040507',
+                    border: '1px solid rgba(255, 255, 255, 0.08)',
+                    borderRadius: '6px',
+                    fontFamily: 'var(--font-mono)',
+                    fontSize: '0.85rem',
+                    color: '#cbd5e1',
+                    whiteSpace: 'pre-wrap',
+                    maxHeight: '220px',
+                    overflowY: 'auto',
+                    boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.6)',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '8px'
+                  }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(255,255,255,0.06)', paddingBottom: '4px', marginBottom: '2px' }}>
+                      <span style={{ 
+                        color: customTestResult.includes('[SUCCESS]') ? '#34d399' : customTestResult.includes('Compiling') ? '#38bdf8' : '#f87171', 
+                        fontWeight: 'bold',
+                        fontSize: '0.65rem',
+                        letterSpacing: '0.04em'
+                      }}>
+                        {customTestResult.includes('[SUCCESS]') ? '✓ RUN SUCCESS' : customTestResult.includes('Compiling') ? '⚡ RUNNING...' : '✗ RUN FAILED'}
+                      </span>
+                      <button 
+                        type="button"
+                        onClick={() => setCustomTestResult(null)}
+                        style={{ 
+                          background: 'transparent', 
+                          border: 'none', 
+                          color: '#64748b', 
+                          cursor: 'pointer', 
+                          fontSize: '1rem',
+                          lineHeight: '1',
+                          padding: '0 2px',
+                          display: 'flex',
+                          alignItems: 'center'
+                        }}
+                        className="hover:text-white transition-colors"
+                      >
+                        ×
+                      </button>
+                    </div>
+                    <div style={{ wordBreak: 'break-word', color: customTestResult.includes('[SUCCESS]') ? '#e2e8f0' : customTestResult.includes('Compiling') ? '#94a3b8' : '#fca5a5' }}>
+                      {customTestResult}
+                    </div>
+
+                    {/* Debugging Action Hooks */}
+                    {!customTestResult.includes('Compiling') && (
+                      <div style={{ marginTop: '6px', paddingTop: '6px', borderTop: '1px solid rgba(255,255,255,0.06)', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                        {customTestResult.includes('[SUCCESS]') ? (
+                          <>
+                            {!isInputtingExpected ? (
+                              <button
+                                type="button"
+                                onClick={() => setIsInputtingExpected(true)}
+                                style={{
+                                  padding: '8px 12px',
+                                  fontSize: '0.8rem',
+                                  fontWeight: 600,
+                                  background: 'rgba(16, 185, 129, 0.1)',
+                                  border: '1px solid rgba(16, 185, 129, 0.3)',
+                                  borderRadius: '4px',
+                                  color: '#34d399',
+                                  cursor: 'pointer',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  gap: '4px'
+                                }}
+                                className="hover:bg-emerald-500/20 transition-all"
+                              >
+                                <span>🐞 Debug with Agent Debate</span>
+                              </button>
+                            ) : (
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                                <input
+                                  type="text"
+                                  placeholder="Enter Expected Output..."
+                                  value={customExpectedOutput}
+                                  onChange={(e) => setCustomExpectedOutput(e.target.value)}
+                                  style={{
+                                    width: '100%',
+                                    background: '#040507',
+                                    border: '1px solid rgba(255,255,255,0.15)',
+                                    borderRadius: '4px',
+                                    padding: '10px 12px',
+                                    fontSize: '0.85rem',
+                                    color: '#cbd5e1',
+                                    outline: 'none',
+                                    marginBottom: '4px'
+                                  }}
+                                  onKeyDown={(e) => {
+                                    if (e.key === 'Enter') {
+                                      handleLaunchDebugDebate(customExpectedOutput);
+                                    }
+                                  }}
+                                />
+                                <div style={{ display: 'flex', gap: '4px' }}>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleLaunchDebugDebate(customExpectedOutput)}
+                                    disabled={!customExpectedOutput.trim()}
+                                    style={{
+                                      flex: 1,
+                                      padding: '8px 12px',
+                                      fontSize: '0.8rem',
+                                      fontWeight: 600,
+                                      background: '#059669',
+                                      border: 'none',
+                                      borderRadius: '4px',
+                                      color: '#ffffff',
+                                      cursor: 'pointer'
+                                    }}
+                                    className="disabled:opacity-50 disabled:cursor-not-allowed hover:bg-emerald-600 transition-colors"
+                                  >
+                                    Re-run Debate
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setIsInputtingExpected(false);
+                                      setCustomExpectedOutput('');
+                                    }}
+                                    style={{
+                                      padding: '8px 12px',
+                                      fontSize: '0.8rem',
+                                      background: 'rgba(255,255,255,0.05)',
+                                      border: '1px solid rgba(255,255,255,0.1)',
+                                      borderRadius: '4px',
+                                      color: '#94a3b8',
+                                      cursor: 'pointer'
+                                    }}
+                                    className="hover:bg-slate-800 transition-colors"
+                                  >
+                                    Cancel
+                                  </button>
+                                </div>
+                              </div>
+                            )}
+                          </>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => handleLaunchDebugDebate('')}
+                            style={{
+                              padding: '4px 6px',
+                              fontSize: '0.65rem',
+                              fontWeight: 600,
+                              background: 'rgba(239, 68, 68, 0.1)',
+                              border: '1px solid rgba(239, 68, 68, 0.3)',
+                              borderRadius: '3px',
+                              color: '#f87171',
+                              cursor: 'pointer',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              gap: '4px'
+                            }}
+                            className="hover:bg-red-500/20 transition-all"
+                          >
+                            <span>🐞 Debug Error with Debate</span>
+                          </button>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+
             </div>
           </div>
         </div>

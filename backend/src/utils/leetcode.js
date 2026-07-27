@@ -656,7 +656,10 @@ export async function fetchLeetCodeProblem(problemUrl) {
       if (q && (q.content || (q.codeSnippets && q.codeSnippets.length > 0))) {
         const title = q.title || slug;
         const rawContent = q.content || '';
-        const cleanDescription = stripMarkdown(rawContent.replace(/<[^>]*>/g, ' '));
+        let processedContent = rawContent
+          .replace(/<sup[^>]*>/gi, '^')
+          .replace(/<\/sup>/gi, '');
+        const cleanDescription = stripMarkdown(processedContent.replace(/<[^>]*>/g, ' '));
 
         let snippetsText = '=== EXPORTED STARTER TEMPLATES ===\n';
         if (q.codeSnippets && Array.isArray(q.codeSnippets)) {

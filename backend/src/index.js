@@ -27,14 +27,14 @@ const io = new Server(httpServer, {
 
 global.io = io;
 
-
+const jobProblemDescriptions = new Map();
 
 // Log websocket connection statuses
 io.on('connection', (socket) => {
   console.log(`[Socket] Client connected: ${socket.id}`);
   
   socket.on('run_custom_test', async (data) => {
-    const { jobId, inputData, code, language } = data;
+    const { jobId, inputData, code, language, problemDescription } = data;
     console.log(`[Socket] Custom test requested for Job ${jobId}, Language ${language}`);
     
     // Broadcast compiling status to terminal
@@ -50,8 +50,10 @@ io.on('connection', (socket) => {
     try {
       let result;
       let isFailed = false;
+      
+      const finalDesc = problemDescription || jobProblemDescriptions.get(jobId) || '';
       const { executeCpp } = await import('./executor/cppExecutor.js');
-      const execution = await executeCpp(code, [{ input: inputData, expectedOutput: '' }], language);
+      const execution = await executeCpp(code, [{ input: inputData, expectedOutput: '' }], language, 2000, finalDesc);
       const first = execution.results?.[0] || {};
       
       if (!execution.success && !execution.compileSuccess) {
@@ -115,6 +117,9 @@ debateWorker.on('progress', (job, progress) => {
 // 2. Listen for job completions
 debateWorker.on('completed', (job, result) => {
   console.log(`[Socket] Broadcasting completion for Job ${job.id}`);
+  if (result?.problemDescription) {
+    jobProblemDescriptions.set(job.id, result.problemDescription);
+  }
   io.emit(`job-completed:${job.id}`, result);
 });
 
