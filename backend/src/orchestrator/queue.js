@@ -3,8 +3,12 @@ import { debateGraph } from './debateGraph.js';
 import { fetchLeetCodeProblem, getStaticFallbackProblem, withTimeout, slugToCamelCase, stripMarkdown } from '../utils/leetcode.js';
 import { extractSampleTestCases } from '../utils/parser.js';
 
-// Connection options to Docker Redis running on port 6379
-const connection = {
+import dotenv from 'dotenv';
+dotenv.config({ path: '../../.env' }); // Ensure env vars are loaded
+
+// Connection options to Redis
+// Uses UPSTASH_REDIS_URL (or REDIS_URL) if available, otherwise defaults to local Docker Redis
+const connection = process.env.UPSTASH_REDIS_URL || process.env.REDIS_URL || {
   host: 'localhost',
   port: 6379
 };
