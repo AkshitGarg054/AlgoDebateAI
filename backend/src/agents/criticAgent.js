@@ -125,22 +125,34 @@ Universal Evaluation Framework:
 
   try {
     const response = await ai.models.generateContent({
-      model: 'gemini-flash-lite-latest',
+      model: 'gemini-2.0-flash',
       contents: prompt,
       config: {
         systemInstruction,
         responseMimeType: 'application/json',
         responseSchema: CriticResponseSchema,
         temperature: 0.1,
-        maxOutputTokens: 2048
+        maxOutputTokens: 8192
       }
     });
 
-    return safeParseJSON(response.text, {
+    const parsed = safeParseJSON(response.text, {
       approved: true,
       reasoning: 'Code output evaluation complete.',
       failingTestCase: null
     });
+
+    // Programmatic Override: Never approve if any sandbox test case failed
+    const hasFailures = sandboxResults.length > 0 && sandboxResults.some(r => r.status !== 'PASS');
+    if (hasFailures) {
+      parsed.approved = false;
+      if (!parsed.failingTestCase) {
+        const firstFail = sandboxResults.find(r => r.status !== 'PASS');
+        parsed.failingTestCase = { input: firstFail.input, expectedOutput: firstFail.expectedOutput };
+      }
+    }
+
+    return parsed;
   } catch (err) {
     console.warn(`[CriticAgent] Gemini API rate limit or error (${err.message}). Using fallback critic evaluation.`);
     const sandboxPassed = sandboxResults.length > 0 && sandboxResults.every(r => r.status === 'PASS');

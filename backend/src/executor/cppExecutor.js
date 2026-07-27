@@ -314,6 +314,7 @@ export async function executeCpp(code, testCases, language = 'cpp', timeoutMs = 
     timeoutMs = language;
     language = 'cpp';
   }
+  code = code || '';
   
   await ensureTempDir();
   const id = `${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
@@ -322,7 +323,8 @@ export async function executeCpp(code, testCases, language = 'cpp', timeoutMs = 
     const sourcePath = path.join(TEMP_DIR, `solution_${id}.cpp`);
     const exePath = path.join(TEMP_DIR, `solution_${id}.exe`);
 
-    let modifiedCode = code;
+    let safeCode = code || '';
+    let modifiedCode = safeCode;
     let preHeaders = `#include <iostream>\n#include <vector>\n#include <string>\n#include <algorithm>\n#include <queue>\n#include <stack>\n#include <map>\n#include <set>\n#include <unordered_map>\n#include <unordered_set>\n#include <numeric>\n#include <climits>\n#include <cmath>\nusing namespace std;\n\n`;
     
     if (modifiedCode.includes('ListNode') && !modifiedCode.includes('struct ListNode')) {
@@ -337,10 +339,10 @@ export async function executeCpp(code, testCases, language = 'cpp', timeoutMs = 
     }
     try {
       let cppTemplate = extractLanguageSnippet(problemDescription, 'cpp');
-      if (!cppTemplate && code.includes('class Solution')) {
-        cppTemplate = code;
+      if (!cppTemplate && safeCode.includes('class Solution')) {
+        cppTemplate = safeCode;
       }
-      if (cppTemplate && code.includes('class Solution')) {
+      if (cppTemplate && safeCode.includes('class Solution')) {
         const signatureMatch = extractSignature(cppTemplate);
         if (signatureMatch) {
           const { returnType, methodName, params } = signatureMatch;
@@ -363,7 +365,7 @@ export async function executeCpp(code, testCases, language = 'cpp', timeoutMs = 
           modifiedCode += `}\n`;
 
           // 2. Generate driver main function if the code does not already contain a main function
-          if (!code.includes('int main') && !code.includes('main(')) {
+          if (!safeCode.includes('int main') && !safeCode.includes('main(')) {
             let driverCode = `\n\n/* Sandbox Test Runner Driver */\n`;
             driverCode += `#include <iostream>\n`;
             driverCode += `#include <vector>\n`;

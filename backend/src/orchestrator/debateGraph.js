@@ -4,6 +4,9 @@ import { executeCpp, extractLanguageSnippet } from '../executor/cppExecutor.js';
 import { critiqueCode } from '../agents/criticAgent.js';
 import { refineCode } from '../agents/refinerAgent.js';
 import { extractSampleTestCases, cleanCodeString, cleanMarkdownText } from '../utils/parser.js';
+import { executePythonRepl } from '../executor/pythonReplExecutor.js';
+import { generateNaiveSolver, generateTestCaseGenerator } from '../agents/fuzzerAgent.js';
+import { runDifferentialFuzzing } from '../executor/fuzzerExecutor.js';
 
 /**
  * Helper to validate if the generated code is empty or a placeholder
@@ -64,7 +67,10 @@ export const DebateState = Annotation.Root({
   criticPrompt: Annotation({ reducer: (x, y) => y }),
   refinerPrompt: Annotation({ reducer: (x, y) => y }),
   language: Annotation({ reducer: (x, y) => y, default: () => 'cpp' }),
-  inferRequirements: Annotation({ reducer: (x, y) => y, default: () => false })
+  inferRequirements: Annotation({ reducer: (x, y) => y, default: () => false }),
+  pythonReplScript: Annotation({ reducer: (x, y) => y }),
+  fuzzerNaiveCode: Annotation({ reducer: (x, y) => y }),
+  fuzzerGenCode: Annotation({ reducer: (x, y) => y })
 });
 
 /**
@@ -132,10 +138,21 @@ Extract Example 1, Example 2, and Example 3 inputs/outputs directly from the Lee
     problemDescForAgent += `\n\n[CRITICAL INSTRUCTION] Provide the EXACT LeetCode signature (e.g., \`int trapRainWater(vector<vector<int>>& heightMap)\`) and write the full working Min-Heap Priority Queue BFS implementation. Do not output comments or stub placeholders, you MUST generate the complete algorithm logic.`;
   }
 
-  // Set a max timeout of 15 seconds for Coder Agent execution
+  // Set a max timeout of 90 seconds for Coder Agent execution
+  let historyToPass = [...state.criticismHistory];
+  
+  if (historyToPass.length > 0) {
+    const hasSandboxFailure = historyToPass.some(h => h.criticism.includes('[SANDBOX FAILURE]'));
+    const usedRepl = historyToPass.some(h => h.code === "Python REPL Simulation Request");
+    
+    if (hasSandboxFailure && !usedRepl) {
+      historyToPass[historyToPass.length - 1].criticism += `\n\n[CRITICAL DIRECTIVE]: You have failed sandbox execution tests. You MUST NOT guess the formula again. You MUST provide a 'pythonReplScript' to brute-force and simulate the sequence up to n=6 and m=5 and print the maximum results to empirically discover the true pattern. IMPORTANT: When writing the simulation, you must exhaustively test ALL valid state transitions (e.g. step size from 1 to m) rather than just testing +/- m! Since brute force DFS can easily Time Out, you MUST use @lru_cache or Dynamic Programming! OMIT the 'code' and 'testCases' fields entirely for this round!`;
+    }
+  }
+
   const draft = await executeWithTimeout(
-    generateDraft(problemDescForAgent, state.criticismHistory, state.coderPrompt, lang),
-    15000,
+    generateDraft(problemDescForAgent, historyToPass, state.coderPrompt, lang),
+    90000,
     "Coder Agent code generation"
   );
 
@@ -170,7 +187,7 @@ Extract Example 1, Example 2, and Example 3 inputs/outputs directly from the Lee
     console.log('[Node: Coder] Synthesizing 5 adversarial edge-cases dynamically...');
     const synthesized = await executeWithTimeout(
       synthesizeTestCases(state.problemDescription, lang),
-      15000,
+      60000,
       "Coder Agent test case synthesis"
     ).catch(err => {
       console.warn(`[Node: Coder] Test case synthesis timed out or failed, falling back to draft cases:`, err.message);
@@ -198,6 +215,7 @@ Extract Example 1, Example 2, and Example 3 inputs/outputs directly from the Lee
 
   return {
     code: draft.code,
+    pythonReplScript: draft.pythonReplScript,
     testCases: dedupedCases
   };
 }
@@ -239,6 +257,93 @@ async function sandboxNode(state) {
   }
   
   return { sandboxResults: results };
+}
+
+/**
+ * 3.5. Define Node: Python REPL Sandbox (Agentic Discovery)
+ */
+async function replNode(state) {
+  console.log(`[Node: REPL] Executing Coder's Python simulation script...`);
+  if (state.onProgress) {
+    await state.onProgress({ node: 'coder', round: state.currentRound, message: '[REPL] Running exploratory Python script...' });
+  }
+
+  const script = state.pythonReplScript;
+  const execution = await executePythonRepl(script, 3000);
+  
+  let replFeedback = `[Python REPL Execution Results]\n`;
+  if (execution.success) {
+    replFeedback += `Stdout:\n${execution.output}\n\nAnalyze this output to deduce the correct formula, then generate the final code.`;
+  } else {
+    replFeedback += `Stdout:\n${execution.output}\nError:\n${execution.error}\n\nYour simulation script failed. Fix your logic and try again, or proceed to write the final code.`;
+  }
+
+  console.log(`[Node: REPL] Execution finished. Providing stdout back to Coder.`);
+
+  // Append the REPL output to the criticism history so the Coder sees it next round
+  return {
+    pythonReplScript: null, // clear it so we don't infinitely loop
+    criticismHistory: [{
+      round: state.currentRound,
+      code: "Python REPL Simulation Request",
+      criticism: replFeedback
+    }]
+  };
+}
+
+/**
+ * 3.6. Define Node: Fuzzer (Differential Testing)
+ */
+async function fuzzNode(state) {
+  // Skip fuzzing only if there was a compilation error (no executable to run)
+  // If standard tests failed with WA, we STILL want to fuzz to find a SMALL counter-example for the LLM!
+  const allCompileErrors = state.sandboxResults && state.sandboxResults.length > 0 && state.sandboxResults.every(r => r.status === 'ERROR');
+  if (allCompileErrors) {
+    return {};
+  }
+  
+  if (state.onProgress) {
+    await state.onProgress({ node: 'fuzz', round: state.currentRound, message: '[FUZZER] Ground-truth solver generated. Running 50 random differential tests...' });
+  }
+
+  try {
+    let naiveCode = state.fuzzerNaiveCode;
+    let genCode = state.fuzzerGenCode;
+    
+    if (!naiveCode || !genCode) {
+      console.log(`[Node: Fuzzer] Generating Naive Solver and Test Case Generator scripts...`);
+      const naivePromise = generateNaiveSolver(state.problemDescription);
+      const genPromise = generateTestCaseGenerator(state.problemDescription);
+      const results = await Promise.all([naivePromise, genPromise]);
+      naiveCode = results[0];
+      genCode = results[1];
+    }
+    
+    console.log(`[Node: Fuzzer] Executing 50 random inputs against O(1) solver vs O(N!) solver...`);
+    const fuzzResult = await runDifferentialFuzzing(genCode, naiveCode, state.code, state.problemDescription);
+    
+    const updates = {
+      fuzzerNaiveCode: naiveCode,
+      fuzzerGenCode: genCode
+    };
+
+    if (!fuzzResult.success && fuzzResult.failingCase) {
+       console.log(`[Node: Fuzzer] DISCOVERED FAILING EDGE CASE via Fuzzing! Input=\${fuzzResult.failingCase.input.replace(/\\n/g, ' ')}`);
+       updates.sandboxResults = [...(state.sandboxResults || []), {
+         status: 'FAIL',
+         input: fuzzResult.failingCase.input,
+         expectedOutput: fuzzResult.failingCase.expected,
+         actualOutput: fuzzResult.failingCase.actual,
+         fuzzerMismatch: true
+       }];
+    } else {
+       console.log(`[Node: Fuzzer] All 50 fuzzer test cases passed successfully.`);
+    }
+    return updates;
+  } catch (err) {
+    console.error(`[Node: Fuzzer] Fuzzing failed:`, err.message);
+    return {};
+  }
 }
 
 /**
@@ -323,7 +428,12 @@ async function criticNode(state) {
       errors.forEach((err, idx) => {
         feedback += `\n- Test Case ${idx + 1} Status: ${err.status}`;
         if (err.input) feedback += `\n  Input: ${err.input}`;
-        if (err.error) feedback += `\n  Stderr / Fault Stream:\n  ${err.error}`;
+        if (err.fuzzerMismatch) {
+          feedback += `\n  [FUZZER MISMATCH] Expected Output (from Ground Truth): ${err.expectedOutput}`;
+          feedback += `\n  Actual Output (from your code): ${err.actualOutput}`;
+        } else if (err.error) {
+          feedback += `\n  Stderr / Fault Stream:\n  ${err.error}`;
+        }
       });
     }
 
@@ -407,25 +517,44 @@ function routeAfterCritic(state) {
     return "refiner";
   }
 
-  if (isEmpty && state.currentRound < limit) {
+  if (isEmpty) {
     console.log(`[Router] Code is empty or placeholder. Retrying coder agent node.`);
-    return "coder";
+  } else {
+    console.log(`[Router] Critic rejected the solution. Looping back to coder (Round ${state.currentRound + 1}/${limit}).`);
   }
 
-  return "refiner";
+  return "coder";
+}
+
+function routeAfterCoder(state) {
+  if (state.pythonReplScript) {
+    console.log(`[Router] Coder Agent requested Python REPL. Routing to replNode.`);
+    return "repl";
+  }
+  return "sandbox";
 }
 
 // 7. Assemble the StateGraph workflow
 const workflow = new StateGraph(DebateState)
   .addNode("coder", coderNode)
+  .addNode("repl", replNode)
   .addNode("sandbox", sandboxNode)
+  .addNode("fuzz", fuzzNode)
   .addNode("critic", criticNode)
   .addNode("refiner", refinerNode);
 
 // Define standard transitions
 workflow.addEdge(START, "coder");
-workflow.addEdge("coder", "sandbox");
-workflow.addEdge("sandbox", "critic");
+
+// Define conditional decision transitions
+workflow.addConditionalEdges("coder", routeAfterCoder, {
+  repl: "repl",
+  sandbox: "sandbox"
+});
+
+workflow.addEdge("repl", "coder");
+workflow.addEdge("sandbox", "fuzz");
+workflow.addEdge("fuzz", "critic");
 
 // Define conditional decision transitions
 workflow.addConditionalEdges("critic", routeAfterCritic, {

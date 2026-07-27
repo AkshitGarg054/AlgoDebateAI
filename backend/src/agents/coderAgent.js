@@ -66,7 +66,10 @@ Guidelines:
 
 7. Ensure the time complexity is optimal for large input constraints.
 8. Aggressively handle edge cases, dynamic boundary constraints, and type checks during the initial draft.
-9. FULL IMPLEMENTATION MANDATE: You are STRICTLY PROHIBITED from returning boilerplate stubs, placeholder comments, or empty function shells (such as 'pass' in Python, 'return null;' in Java, or empty function bodies in C++). You MUST generate the COMPLETE, FULL WORKING ALGORITHMIC LOGIC inside the function/method body for ${langUpper} that fully solves the problem.
+9. FOR MATHEMATICAL AND SEQUENCE PROBLEMS: You MUST NOT guess the formula. Explicitly derive the mathematical constraints and closed-form solutions on paper first. Double-check your algebraic derivations against the provided Example Test Cases step-by-step to guarantee your formula holds for all scenarios before writing code.
+10. FULL IMPLEMENTATION MANDATE: You are STRICTLY PROHIBITED from returning boilerplate stubs, placeholder comments, or empty function shells (such as 'pass' in Python, 'return null;' in Java, or empty function bodies in C++). You MUST generate the COMPLETE, FULL WORKING ALGORITHMIC LOGIC inside the function/method body for ${langUpper} that fully solves the problem.
+11. FEEDBACK CORRECTION PROTOCOL: If you are provided with Sandbox Execution Feedback showing that your previous code failed a test case, DO NOT simply tweak your previous formula with +/- 1. You MUST completely discard your previous mathematical derivation and trace the failing edge case manually, step-by-step, to discover the true underlying sequence pattern before generating new code.
+12. AGENTIC PYTHON REPL: If you are unsure of a mathematical pattern or need to empirically test a hypothesis on small inputs before writing the final optimal solution, you may provide a Python script in the 'pythonReplScript' field. If provided, the system will execute it and loop back the stdout to you in the next round. You can ONLY provide a 'pythonReplScript' OR 'code', not both. If using the REPL, omit 'code' and 'testCases'.
   `.trim();
 
   // Dynamically configure description based on language
@@ -107,27 +110,34 @@ Guidelines:
           },
           required: ['input', 'expectedOutput']
         }
+      },
+      pythonReplScript: {
+        type: 'STRING',
+        description: 'A Python script to execute in the REPL sandbox to discover patterns empirically. Omit if writing the final code.'
       }
     },
-    required: ['reasoning', 'code', 'testCases']
+    required: ['reasoning']
   };
 
   try {
     const response = await ai.models.generateContent({
-      model: 'gemini-flash-lite-latest',
+      model: 'gemini-2.0-flash',
       contents: prompt,
       config: {
         systemInstruction,
         responseMimeType: 'application/json',
         responseSchema: CoderResponseSchema,
         temperature: 0.1,
-        maxOutputTokens: 2048
+        maxOutputTokens: 8192
       }
     });
 
     const parsed = safeParseJSON(response.text, { code: cleanCodeString(response.text), reasoning: 'Generated solution' });
     if (parsed.code) {
       parsed.code = cleanCodeString(parsed.code);
+    }
+    if (parsed.pythonReplScript) {
+      parsed.pythonReplScript = cleanCodeString(parsed.pythonReplScript);
     }
     if (parsed.reasoning) {
       parsed.reasoning = cleanMarkdownText(parsed.reasoning);
@@ -210,7 +220,7 @@ Generate test cases covering:
 
   try {
     const response = await ai.models.generateContent({
-      model: 'gemini-flash-lite-latest',
+      model: 'gemini-2.0-flash',
       contents: prompt,
       config: {
         systemInstruction,

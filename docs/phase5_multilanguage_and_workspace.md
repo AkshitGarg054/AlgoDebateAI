@@ -226,3 +226,12 @@ To add a new language kernel (e.g., Go or Rust) in the future, follow this seque
 * **The Remedy:** 
   1. **Server-Side In-Memory Cache:** Added an in-memory Map (`jobProblemDescriptions`) on the backend server that caches scraped problem descriptions on completion and serves them to custom test requests matching the target `jobId`.
   2. **Sandbox Signature Parsing Fallback:** Updated the compiler sandbox templates to fallback directly to parsing the user's active editor code if the problem description template is missing or empty. This extracts the signature directly from the `class Solution` code body itself, ensuring successful driver generation.
+
+### Vault Entry 3: Syntax Highlighting vs. Interactive Code Input & Debug-in-Debate Loops
+* **The Conceptual Error:** Restricting user workspaces to static read-only views and separating sandbox execution feedback loops from agent orchestration pipelines.
+* **The Symptom:** Users could copy/download code, but couldn't fix minor bugs or write test code directly in the browser because the code workspace was built as a static line-by-line syntax-highlighted display. Additionally, when a custom test failed or returned wrong outputs, there was no way to guide the agent debate to correct the code using that specific failing test input.
+* **The Remedy:** 
+  1. **Dual-Mode Interactive Editor:** Added a state-controlled toggle (`isEditingCode`) to the workspace header. When active, it swaps the static line-by-line syntax highlighter for an interactive dark-themed `<textarea>` with built-in Tab key indentation handlers (inserting 4 spaces instead of shifting focus).
+  2. **Live State Synchronization:** Prioritized `liveCode` at the top of `getFinalSolutionCode()`, turning the editor textarea value into the single source of truth for the entire workspace.
+  3. **Debug-in-Debate Orchestration:** Added an interactive `🐞 Debug with Agent Debate` action inside the custom results box. When triggered, it prompts the user for the expected output (if the run succeeded logically but returned wrong results), formats the input and expected output as a new LeetCode Example block, appends it to the active description, and launches a fresh debate. The agent loop automatically parses the new example and compiles/tests the solution against it until it passes.
+

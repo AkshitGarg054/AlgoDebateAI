@@ -80,14 +80,14 @@ Universal Polish & Error Rectification Framework:
 
   try {
     const response = await ai.models.generateContent({
-      model: 'gemini-flash-lite-latest',
+      model: 'gemini-2.0-flash',
       contents: prompt,
       config: {
         systemInstruction,
         responseMimeType: 'application/json',
         responseSchema: RefinerResponseSchema,
         temperature: 0.1,
-        maxOutputTokens: 2048
+        maxOutputTokens: 8192
       }
     });
 
