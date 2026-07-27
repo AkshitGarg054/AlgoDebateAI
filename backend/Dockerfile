@@ -1,4 +1,4 @@
-FROM node:18-bullseye-slim
+FROM node:20-bullseye-slim
 
 # Install C++, Python, and Java compilers required for the sandbox
 RUN apt-get update && apt-get install -y \
