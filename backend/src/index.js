@@ -3,6 +3,7 @@ import { createServer } from 'http';
 import { Server } from 'socket.io';
 import cors from 'cors';
 import { debateQueue, debateWorker } from './orchestrator/queue.js';
+import { extractSampleTestCases } from './utils/parser.js';
 
 const app = express();
 const httpServer = createServer(app);
@@ -24,9 +25,78 @@ const io = new Server(httpServer, {
   }
 });
 
+global.io = io;
+
+
+
 // Log websocket connection statuses
 io.on('connection', (socket) => {
   console.log(`[Socket] Client connected: ${socket.id}`);
+  
+  socket.on('run_custom_test', async (data) => {
+    const { jobId, inputData, code, language } = data;
+    console.log(`[Socket] Custom test requested for Job ${jobId}, Language ${language}`);
+    
+    // Broadcast compiling status to terminal
+    socket.emit(`job-progress:${jobId}`, {
+      roundsHistory: [{
+        node: 'sandbox',
+        round: 0,
+        code: code,
+        customOutput: '[SYSTEM] Compiling custom test case in Sandbox...'
+      }]
+    });
+
+    try {
+      let result;
+      let isFailed = false;
+      const { executeCpp } = await import('./executor/cppExecutor.js');
+      const execution = await executeCpp(code, [{ input: inputData, expectedOutput: '' }], language);
+      const first = execution.results?.[0] || {};
+      
+      if (!execution.success && !execution.compileSuccess) {
+        result = `[COMPILATION ERROR]\n${execution.compileError}`;
+        isFailed = true;
+      } else if (first.status === 'COMPILE_ERROR') {
+        result = `[COMPILATION ERROR]\n${first.error}`;
+        isFailed = true;
+      } else if (first.status === 'RTE') {
+        result = `[RUNTIME ERROR]\n${first.error}`;
+        isFailed = true;
+      } else if (first.status === 'TLE') {
+        result = `[TIMEOUT ERROR]\nExecution timed out.`;
+        isFailed = true;
+      } else {
+        result = `[SUCCESS]\nExecution Time: ${first.timeMs}ms\nOutput:\n${first.actualOutput}`;
+      }
+
+      if (isFailed) {
+        socket.emit(`job-progress:${jobId}`, {
+          roundsHistory: [
+            {
+              node: 'sandbox',
+              round: 0,
+              code: code,
+              customOutput: result
+            },
+            {
+              node: 'sandbox',
+              round: 0,
+              code: code,
+              customOutput: '⚠️ Custom Test Failed -> Re-triggering Agent Debate'
+            }
+          ]
+        });
+      }
+
+      socket.emit(`custom_test_result:${jobId}`, { result, isFailed });
+
+    } catch (err) {
+      console.error('[Socket] Error running custom test:', err);
+      socket.emit(`custom_test_result:${jobId}`, { result: `[ERROR] Execution failed: ${err.message}`, isFailed: true });
+    }
+  });
+
   socket.on('disconnect', () => {
     console.log(`[Socket] Client disconnected: ${socket.id}`);
   });
@@ -52,44 +122,50 @@ debateWorker.on('completed', (job, result) => {
 debateWorker.on('failed', (job, err) => {
   console.error(`[Worker] Job ${job ? job.id : 'unknown'} failed:`, err);
   if (job) {
-    io.emit(`job-failed:${job.id}`, { error: err.message });
+    let errorMsg = err.message || String(err);
+    if (errorMsg.includes('API key') || errorMsg.includes('API_KEY') || errorMsg.includes('apiKey') || errorMsg.includes('network') || errorMsg.includes('fetch') || errorMsg.includes('Timeout') || errorMsg.includes('timeout')) {
+      errorMsg = 'Execution failed: Check LLM API key / network';
+    }
+    io.emit(`job-failed:${job.id}`, { error: errorMsg });
   }
 });
 
-// ----------------------------------------------------
-// EXPRESS HTTP API ROUTES
-// ----------------------------------------------------
-
 /**
  * POST /api/debate
- * Accepts problemDescription and maxRounds.
- * Pushes job to BullMQ queue and immediately returns the jobId.
+ * Accepts problemDescription and problemUrl.
+ * Pushes raw parameters directly to BullMQ queue and immediately returns the jobId.
  */
 app.post('/api/debate', async (req, res) => {
   try {
-    const { problemDescription, maxRounds = 4, jobId } = req.body;
-
-    if (!problemDescription || problemDescription.trim() === '') {
-      return res.status(400).json({ error: 'Problem description is required.' });
-    }
+    const { problemDescription, problemUrl, maxRounds = 4, jobId, language = 'cpp', coderPrompt, criticPrompt, refinerPrompt } = req.body;
+    const maxRoundsClamped = Math.min(Number(maxRounds) || 4, 4);
 
     if (!jobId) {
       return res.status(400).json({ error: 'jobId is required for real-time tracking.' });
     }
 
     // Add debate job to queue with a custom client-generated jobId
+    // Pass raw inputs to be processed asynchronously inside the background worker
     const job = await debateQueue.add(
       'debateJob',
-      { problemDescription, maxRounds },
+      { 
+        problemDescription: problemDescription || '', 
+        problemUrl: problemUrl || '',
+        maxRounds: maxRoundsClamped, 
+        language, 
+        coderPrompt, 
+        criticPrompt, 
+        refinerPrompt 
+      },
       { jobId } // Instructs BullMQ to use the client-generated ID
     );
 
     console.log(`[API] Enqueued Job ${job.id} for debate.`);
-    return res.status(202).json({ jobId: job.id });
+    return res.status(200).json({ jobId: job.id });
 
   } catch (err) {
-    console.error('[API] Error submitting debate:', err);
-    return res.status(500).json({ error: 'Internal Server Error.' });
+    console.error('[API] Error submitting debate job:', err);
+    return res.status(500).json({ error: err.message || 'Failed to submit debate job.' });
   }
 });
 

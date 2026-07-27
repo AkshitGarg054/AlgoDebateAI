@@ -77,6 +77,44 @@ int main() {
   // Test with a tight timeout of 1000ms
   const loopRes = await executeCpp(infiniteLoopCode, [{ input: '', expectedOutput: '' }], 1000);
   console.log('Result Summary:', JSON.stringify(loopRes, null, 2));
+
+  // Test Case 5: Python (Valid script)
+  logSection('Valid Python Program (Sum of Two Numbers)');
+  const pyCode = `
+import sys
+for line in sys.stdin:
+    parts = line.split()
+    if len(parts) >= 2:
+        print(int(parts[0]) + int(parts[1]))
+  `;
+  const pyTestCases = [
+    { input: '5 7\n', expectedOutput: '12' },
+    { input: '-3 10\n', expectedOutput: '7' }
+  ];
+  const pyRes = await executeCpp(pyCode, pyTestCases, 'python');
+  console.log('Result Summary (Python):', JSON.stringify(pyRes, null, 2));
+
+  // Test Case 6: Java (Valid script)
+  logSection('Valid Java Program (Sum of Two Numbers)');
+  const javaCode = `
+import java.util.Scanner;
+public class Main {
+    public static void main(String[] args) {
+        Scanner sc = new Scanner(System.in);
+        if (sc.hasNextInt()) {
+            int a = sc.nextInt();
+            int b = sc.nextInt();
+            System.out.println(a + b);
+        }
+    }
+}
+  `;
+  const javaTestCases = [
+    { input: '5 7\n', expectedOutput: '12' },
+    { input: '-3 10\n', expectedOutput: '7' }
+  ];
+  const javaRes = await executeCpp(javaCode, javaTestCases, 'java');
+  console.log('Result Summary (Java):', JSON.stringify(javaRes, null, 2));
 }
 
 runTests().catch(console.error);
