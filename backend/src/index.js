@@ -13,7 +13,8 @@ const allowedOrigins = ['http://localhost:5173', process.env.FRONTEND_URL].filte
 
 app.use(cors({
   origin: function (origin, callback) {
-    if (!origin || allowedOrigins.includes(origin)) {
+    // Loose CORS matching for ease of deployment
+    if (!origin || origin.includes('localhost') || origin.includes('vercel.app') || (process.env.FRONTEND_URL && origin.includes(process.env.FRONTEND_URL.replace('https://', '').replace(/\/$/, '')))) {
       callback(null, true);
     } else {
       callback(new Error('Not allowed by CORS'));
@@ -28,7 +29,8 @@ app.use(express.json());
 const io = new Server(httpServer, {
   cors: {
     origin: function (origin, callback) {
-      if (!origin || allowedOrigins.includes(origin)) {
+      // Loose CORS matching for ease of deployment
+    if (!origin || origin.includes('localhost') || origin.includes('vercel.app') || (process.env.FRONTEND_URL && origin.includes(process.env.FRONTEND_URL.replace('https://', '').replace(/\/$/, '')))) {
         callback(null, true);
       } else {
         callback(new Error('Not allowed by CORS'));
