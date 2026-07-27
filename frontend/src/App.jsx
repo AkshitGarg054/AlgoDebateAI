@@ -37,7 +37,7 @@ import {
 import './App.css';
 
 // Initialize WebSocket connection to backend on port 5000
-const socket = io('http://localhost:5000', {
+const socket = io('https://algodebateai.onrender.com', {
   autoConnect: true
 });
 
@@ -943,7 +943,7 @@ function App() {
     setCustomTestResult(null);
 
     try {
-      const response = await fetch('http://localhost:5000/api/debate', {
+      const response = await fetch('https://algodebateai.onrender.com/api/debate', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
